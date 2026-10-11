@@ -20,11 +20,11 @@
 | P0-15 | V12 Concurrency, rate limits, backpressure | PENDING_LIVE | docs/phase-0/VERIFICATION-REPORT.md#v12 |  | formula done; limit behaviour needs live |
 | P0-16 | V13 API key scope, rotation, network restriction | PENDING_LIVE | docs/phase-0/VERIFICATION-REPORT.md#v13 |  | docs done; rotation test needs live |
 | P0-17 | V14 Self-host production settings | PENDING_LIVE | docs/phase-0/VERIFICATION-REPORT.md#v14 |  | settings documented; instance not available |
-| P0-18 | Carrier shortlist | TODO |  |  |  |
-| P0-19 | Status mapping consolidation | TODO |  |  |  |
-| P0-20 | Webhook trust model decision | TODO |  |  |  |
-| P0-21 | Doc patches | TODO |  |  |  |
-| P0-22 | Phase 1+ handoff and open questions | TODO |  |  |  |
+| P0-18 | Carrier shortlist | DONE | docs/phase-0/CARRIER-SHORTLIST.md |  | docs-only; vendor questions listed; no carrier chosen (needs country/price) |
+| P0-19 | Status mapping consolidation | DONE | docs/phase-0/STATUS-MAPPING.md |  | v0.1 provisional; live upgrade pending |
+| P0-20 | Webhook trust model decision | DONE | docs/phase-0/WEBHOOK-TRUST-MODEL.md |  | provisional numbers pending V03/V04 |
+| P0-21 | Doc patches | DONE | docs/phase-0/DOC-PATCHES.md |  | 22 patches; not applied (APPLY_DOC_PATCHES=no) |
+| P0-22 | Phase 1+ handoff and open questions | DONE | docs/phase-0/PHASE-1-HANDOFF.md; OPEN-QUESTIONS.md |  | 16 open questions |
 | P0-23 | Closeout and checkpoint | TODO |  |  |  |
 
 ## Environment readiness (presence only; no values recorded)
@@ -55,3 +55,4 @@
 - 2026-10-11T06:57Z P0-03 DONE — harness + 26 tests. Next P0-02 write-up
 - 2026-10-11T06:58Z P0-02 DONE — contract + diff table. Next P0-04 (V01)
 - 2026-10-11T07:02Z P0-04..P0-17 recorded in VERIFICATION-REPORT (V05 DONE, V07 DONE, rest PENDING_LIVE with live steps). Next P0-18 and mapping docs
+- 2026-10-11T12:01Z P0-18..P0-22 DONE. Next P0-23 closeout
