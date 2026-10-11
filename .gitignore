@@ -9,3 +9,15 @@ __pycache__/
 .venv/
 .pytest_cache/
 .DS_Store
+
+# Phase 1
+.env
+.env.*
+!.env.example
+backend/.coverage
+backend/coverage.xml
+backend/htmlcov/
+.mypy_cache/
+.ruff_cache/
+celerybeat-schedule*
+*.egg-info/
