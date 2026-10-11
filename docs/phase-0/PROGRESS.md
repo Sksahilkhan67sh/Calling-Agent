@@ -5,7 +5,7 @@
 | P0-00 | Recon and scaffolding | DONE | docs/phase-0/ |  | branch phase-0/dograh-spike from local main (initial commit with docs); layout created |
 | P0-01 | Inputs and environment check | DONE | docs/phase-0/PROGRESS.md |  | docs-only: 5 Dograh/test inputs missing -> PENDING_INPUT |
 | P0-02 | Dograh docs research | TODO |  |  |  |
-| P0-03 | Spike harness | TODO |  |  |  |
+| P0-03 | Spike harness | DONE | spike/dograh/ |  | 26 pytest green; scan catches planted token; receiver echoes redacted capture; scripts v01..v14 follow in their tasks |
 | P0-04 | V01 Webhook auth options and body signing | TODO |  |  |  |
 | P0-05 | V02 Webhook payload template rendering | TODO |  |  |  |
 | P0-06 | V03 Webhook delivery semantics and retry | TODO |  |  |  |
@@ -52,3 +52,4 @@
 
 - 2026-10-11T06:55Z P0-00 DONE — base commit + branch + layout. Next P0-01
 - 2026-10-11T06:55Z P0-01 DONE — env table; no live inputs. Next P0-03 (harness built before P0-02 write-up so the hygiene gate exists; research for P0-02 is already done, only its write-up is deferred)
+- 2026-10-11T06:57Z P0-03 DONE — harness + 26 tests. Next P0-02 write-up
