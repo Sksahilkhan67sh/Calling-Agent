@@ -1,0 +1,11 @@
+# Phase 0 spike: secrets and raw captures never get committed
+spike/dograh/.env*
+!spike/dograh/.env.example
+docs/phase-0/evidence/**/raw/
+
+# Python / editor
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.DS_Store
