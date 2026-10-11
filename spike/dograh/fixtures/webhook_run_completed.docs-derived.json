@@ -1,0 +1,12 @@
+{
+  "_provenance": "DERIVED FROM DOCS (docs.dograh.com /developer/webhooks, read 2026-10-11). NOT an observed capture. Replace with a redacted real capture after the V02 live run.",
+  "attempt_id": "00000000-0000-4000-8000-000000000001",
+  "campaign_id": "spike-campaign",
+  "run_id": "123",
+  "workflow_id": "45",
+  "call_status": "user_hangup",
+  "call_disposition": "user_hangup",
+  "duration_seconds": "94",
+  "recording_url": "https://storage.example.invalid/artifacts/<token>/recording",
+  "transcript_url": "https://storage.example.invalid/artifacts/<token>/transcript"
+}

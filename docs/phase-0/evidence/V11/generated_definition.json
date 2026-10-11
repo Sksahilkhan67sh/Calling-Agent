@@ -1,0 +1,119 @@
+{
+  "edges": [
+    {
+      "data": {
+        "condition": "The person agrees to continue the call",
+        "label": "The person agrees to continue "
+      },
+      "id": "a1cd290b-c0ba-4a8b-9701-126c3cc42162",
+      "source": "cf1ae742-0257-4dc7-9972-3cac47ca3aa2",
+      "target": "f0ddaab7-2b79-4bcb-b080-483939233f91"
+    },
+    {
+      "data": {
+        "condition": "The person asks not to be called again or declines",
+        "label": "The person asks not to be call"
+      },
+      "id": "9a515cb7-0be0-4702-b9e9-933585428177",
+      "source": "cf1ae742-0257-4dc7-9972-3cac47ca3aa2",
+      "target": "07a98313-e5cd-4356-b6ec-bb6b2ad5f4bc"
+    },
+    {
+      "data": {
+        "condition": "The conversation goal is complete or the person wants to finish",
+        "label": "The conversation goal is compl"
+      },
+      "id": "7e627ff9-1940-4b42-8cf1-1318276cec75",
+      "source": "f0ddaab7-2b79-4bcb-b080-483939233f91",
+      "target": "97499f09-9ab4-4958-af81-9b5807fc0bb5"
+    },
+    {
+      "data": {
+        "condition": "The person asks not to be called again",
+        "label": "The person asks not to be call"
+      },
+      "id": "c6d706ce-08e9-4e72-9f2e-48603dd82462",
+      "source": "f0ddaab7-2b79-4bcb-b080-483939233f91",
+      "target": "07a98313-e5cd-4356-b6ec-bb6b2ad5f4bc"
+    }
+  ],
+  "nodes": [
+    {
+      "data": {
+        "detect_voicemail": true,
+        "name": "Consent opening",
+        "prompt": "Hello, this is an automated assistant calling on behalf of ExampleCo. This is a test call and may be recorded. Is now a good time?",
+        "wait_for_user_response": true
+      },
+      "id": "cf1ae742-0257-4dc7-9972-3cac47ca3aa2",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "type": "startCall"
+    },
+    {
+      "data": {
+        "allow_interrupt": true,
+        "name": "Conversation",
+        "prompt": "Ask two short qualifying questions, then finish."
+      },
+      "id": "f0ddaab7-2b79-4bcb-b080-483939233f91",
+      "position": {
+        "x": 300,
+        "y": 0
+      },
+      "type": "agentNode"
+    },
+    {
+      "data": {
+        "name": "Opt-out",
+        "prompt": "Confirm you will not call again, apologise briefly, say goodbye."
+      },
+      "id": "07a98313-e5cd-4356-b6ec-bb6b2ad5f4bc",
+      "position": {
+        "x": 300,
+        "y": 200
+      },
+      "type": "endCall"
+    },
+    {
+      "data": {
+        "name": "End",
+        "prompt": "Thank the person and say goodbye."
+      },
+      "id": "97499f09-9ab4-4958-af81-9b5807fc0bb5",
+      "position": {
+        "x": 600,
+        "y": 0
+      },
+      "type": "endCall"
+    },
+    {
+      "data": {
+        "credential_uuid": null,
+        "enabled": true,
+        "endpoint_url": "https://example.invalid/webhooks/dograh/run-completed",
+        "http_method": "POST",
+        "name": "Run completed",
+        "payload_template": {
+          "attempt_id": "{{initial_context.attempt_id}}",
+          "call_disposition": "{{gathered_context.call_disposition}}",
+          "call_status": "{{gathered_context.call_status}}",
+          "campaign_id": "{{initial_context.campaign_id}}",
+          "duration_seconds": "{{cost_info.call_duration_seconds}}",
+          "recording_url": "{{recording_url}}",
+          "run_id": "{{workflow_run_id}}",
+          "transcript_url": "{{transcript_url}}",
+          "workflow_id": "{{workflow_id}}"
+        }
+      },
+      "id": "14a4f636-0134-4bf2-81b1-62282e291a74",
+      "position": {
+        "x": 900,
+        "y": 0
+      },
+      "type": "webhook"
+    }
+  ]
+}
