@@ -7,3 +7,8 @@ celery[redis]==5.6.3
 argon2-cffi==25.1.0
 cryptography==50.0.1
 django-cors-headers==4.9.0
+djangorestframework-simplejwt==5.5.1
+django-axes==8.3.1
+pyotp==2.10.0
+# transitive of simplejwt; 2.15.0 fixes PYSEC-2026-4141/4183; 2.15.1 (2026-09-28) is inside the 14-day cooling-off window
+pyjwt==2.15.0
