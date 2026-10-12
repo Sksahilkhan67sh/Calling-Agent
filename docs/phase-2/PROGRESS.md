@@ -32,7 +32,8 @@ REPO_URL, BASE_BRANCH=main, DOCS_PATH=`ai_calling agent/`, PYTHON=3.12, COVERAGE
 `DASHBOARD_ORIGIN` left as an example placeholder (tests/docs only).
 
 ## Environment limits (this agent sandbox)
-No PostgreSQL, Redis or Docker binaries found. DB-trigger, privilege (P2-17) and Redis-throttle tests are `PARTIAL` unless a local Postgres/Redis can be provisioned (see P2-01 notes).
+PostgreSQL 16.15 and Redis 7.0 were installed with apt and started locally (no Docker, no systemd), so DB-trigger, privilege (P2-17) and Redis-throttle tests are runnable here.
+Not available: Docker (compose stack), GitHub-hosted CI, network for pre-commit hook environments (gitleaks). Those stay `PARTIAL` with exact human commands.
 
 ## Iteration log
 - P2-00: base gate passed (main contains phase-0 + phase-1 tips and backend/apps/core). Branch phase-2/identity-security created.

@@ -20,3 +20,8 @@
 - Negative: unsetting `AXES_FAILURE_LIMIT` makes prod fail at import with `AXES_FAILURE_LIMIT is required but missing or empty`.
 - `ruff check`, `ruff format --check`, `mypy apps config`: clean (29 source files).
 - Not covered yet: coverage percentage for the new settings code (measured in P2-21).
+
+## Environment (updated after P2-02)
+- `apt-get install postgresql redis-server`; `pg_ctlcluster 16 main start`; `redis-server --daemonize yes`. `psql` reports PostgreSQL 16.15; `redis-cli ping` → PONG.
+- Dev role/database created to match `config/settings/test.py` (`agent`/`agent_test`, `CREATEDB` so pytest-django can create its test database).
+- `pytest -q -m integration`: 8 passed (Phase 1 integration tests against real services).
