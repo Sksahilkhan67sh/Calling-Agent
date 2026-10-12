@@ -1,7 +1,8 @@
 .PHONY: install lock up down logs migrate test cov lint format typecheck check-deploy security shell contract
 SHELL := /bin/bash
 COMPOSE = docker compose --env-file .env -f docker/compose.dev.yml
-BACKEND = cd backend &&
+# Uses ./.venv when it exists (make install), otherwise the active environment.
+BACKEND = cd backend && if [ -f ../.venv/bin/activate ]; then . ../.venv/bin/activate; fi &&
 
 install:
 	python -m venv .venv && . .venv/bin/activate && pip install --require-hashes -r backend/requirements/dev.txt
