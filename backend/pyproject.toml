@@ -18,7 +18,7 @@ ignore_missing_imports = true
 warn_unused_ignores = true
 
 [[tool.mypy.overrides]]
-module = ["apps.core.*", "config.*"]
+module = ["apps.core.*", "apps.accounts.*", "config.*"]
 strict = true
 disallow_untyped_decorators = false
 disallow_subclassing_any = false
@@ -37,8 +37,8 @@ addopts = "-ra --strict-markers"
 markers = ["integration: needs real PostgreSQL/Redis (and optionally a Celery worker)"]
 
 [tool.coverage.run]
-source = ["apps/core", "config"]
-omit = ["config/asgi.py", "config/wsgi.py"]
+source = ["apps/core", "apps/accounts", "config"]
+omit = ["config/asgi.py", "config/wsgi.py", "apps/accounts/migrations/*"]
 
 [tool.coverage.report]
 show_missing = true

@@ -25,3 +25,13 @@
 - `apt-get install postgresql redis-server`; `pg_ctlcluster 16 main start`; `redis-server --daemonize yes`. `psql` reports PostgreSQL 16.15; `redis-cli ping` → PONG.
 - Dev role/database created to match `config/settings/test.py` (`agent`/`agent_test`, `CREATEDB` so pytest-django can create its test database).
 - `pytest -q -m integration`: 8 passed (Phase 1 integration tests against real services).
+
+## P2-03
+- `python manage.py makemigrations --check --dry-run --settings=config.settings.test`: "No changes detected".
+- `sqlmigrate accounts 0002`: three `ADD COLUMN` statements, no `DROP DEFAULT`, no table rewrite beyond PostgreSQL's metadata-only default; `--backwards` drops the three columns.
+- `pytest -q tests/accounts tests/test_accounts.py` (real PostgreSQL 16): all pass, including `test_migration_0002_applies_over_phase1_data_and_reverses` (0001 → row inserted → 0002 → defaults 0/''/NULL; older-code INSERT still works; migrate back to latest) and the empty-database path (test DB creation applies 0001 and 0002).
+- Mutation spot-checks (protection removed → named test fails, then restored):
+  1. `save()` writes `auth_epoch` again → `test_stale_copy_cannot_roll_the_epoch_back` FAILED.
+  2. deactivation no longer bumps → `test_deactivation_bumps_but_reactivation_and_resave_do_not` FAILED.
+- Full suite: 260 passed (unit + integration, real PostgreSQL and Redis); coverage `apps/core`, `apps/accounts`, `config`: 100 % (799 statements, 0 missed).
+- `ruff check`, `ruff format --check`, `mypy apps config` (strict on accounts): clean.
