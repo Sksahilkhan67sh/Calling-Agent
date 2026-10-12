@@ -91,3 +91,10 @@ docker compose --env-file .env -f docker/compose.dev.yml run --rm --entrypoint i
 docker compose --env-file .env -f docker/compose.dev.yml down -v
 ```
 plus GitHub Actions on the PR (all seven jobs).
+
+## P1-22 Closeout notes
+- Final verification on the last commit from a fresh clone: `make lint`, `typecheck`, `cov` (181 passed, 100 %), `security`, `check-deploy`, `contract` all OK.
+- Whole-branch hygiene: gitleaks over all commits clean; the only `github_pat_`-shaped string in the diff is the fake test fixture; `.env` never staged.
+- Incident, fixed: running `pre-commit run --all-files` made `end-of-file-fixer` add a trailing newline to `docs/phase-0/evidence/V11/generated_definition.json`
+  (a Phase 0 deliverable). It was never committed; the file was restored with `git checkout`, and `.pre-commit-config.yaml` now excludes `docs/phase-0/`, `spike/`
+  and `ai_calling agent/`. `git diff main...HEAD -- docs/phase-0 spike "ai_calling agent"` is empty.
