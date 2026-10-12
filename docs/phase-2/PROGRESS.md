@@ -5,7 +5,7 @@
 | P2-00 | Recon and scaffolding | DONE | EVIDENCE P2-00 | e22ab28 | deps: - |
 | P2-01 | Dependencies (simplejwt, axes, pyotp) | DONE | EVIDENCE P2-01 | 241630d | deps: P2-00 |
 | P2-02 | Settings and environment | DONE | EVIDENCE P2-02 | c4a65ef | deps: P2-01 |
-| P2-03 | User model extension | DONE | EVIDENCE P2-03 | TBD | deps: P2-02 |
+| P2-03 | User model extension | DONE | EVIDENCE P2-03 | 2f10629 | deps: P2-02 |
 | P2-04 | Roles, capabilities, RBAC matrix | TODO | - | - | deps: P2-03 |
 | P2-05 | Permission classes and object scoping | TODO | - | - | deps: P2-04 |
 | P2-06 | audit app (append-only) | TODO | - | - | deps: P2-03 |
