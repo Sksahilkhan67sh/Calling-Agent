@@ -3,7 +3,7 @@
 | ID | Task | Status | Evidence | Commit | Notes |
 |---|---|---|---|---|---|
 | P2-00 | Recon and scaffolding | DONE | EVIDENCE P2-00 | e22ab28 | deps: - |
-| P2-01 | Dependencies (simplejwt, axes, pyotp) | DONE | EVIDENCE P2-01 | see git log | deps: P2-00 |
+| P2-01 | Dependencies (simplejwt, axes, pyotp) | DONE | EVIDENCE P2-01 | 241630d | deps: P2-00 |
 | P2-02 | Settings and environment | TODO | - | - | deps: P2-01 |
 | P2-03 | User model extension | TODO | - | - | deps: P2-02 |
 | P2-04 | Roles, capabilities, RBAC matrix | TODO | - | - | deps: P2-03 |
