@@ -1,3 +1,5 @@
+# Phase 0 evidence, the spike and the design documents are history/contracts: hooks must never rewrite them.
+exclude: '^(docs/phase-0/|spike/|ai_calling agent/)'
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
