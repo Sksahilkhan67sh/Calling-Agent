@@ -54,6 +54,15 @@ def _clean_log_context():
 
 
 @pytest.fixture
+def frozen_time():
+    """Freeze the clock at a fixed UTC instant."""
+    from freezegun import freeze_time
+
+    with freeze_time("2026-10-11 12:00:00", tz_offset=0) as frozen:
+        yield frozen
+
+
+@pytest.fixture
 def prod_env() -> dict[str, str]:
     return make_prod_env()
 

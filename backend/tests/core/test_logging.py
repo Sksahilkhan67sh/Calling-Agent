@@ -252,3 +252,14 @@ def test_stack_info_and_preformatted_exc_text_redacted():
     record.exc_text = "trace token=abcdef123456"
     lg.RedactionFilter().filter(record)
     assert "hunter2" not in record.stack_info and "abcdef123456" not in record.exc_text
+
+
+def test_log_timestamp_is_utc_and_follows_the_clock(frozen_time, log_capture):
+    logging.getLogger("clock").info("tick")
+    first = json.loads(log_capture.getvalue().strip().splitlines()[-1])["timestamp"]
+    assert first == "2026-10-11T12:00:00.000+00:00"
+    frozen_time.tick(60)
+    logging.getLogger("clock").info("tock")
+    assert json.loads(log_capture.getvalue().strip().splitlines()[-1])["timestamp"].startswith(
+        "2026-10-11T12:01:00"
+    )
