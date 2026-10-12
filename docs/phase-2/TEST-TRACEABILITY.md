@@ -14,8 +14,8 @@ Source: `Testing/Test-Cases.xlsx` rows matching auth/MFA/lockout/RBAC/audit/secu
 | TC-AU.08 | Django admin not exposed | P2-19, P2-20 | admin-absent test (URL resolve + INSTALLED_APPS) |
 | TC-AU.09 | Deployment checks pass | P2-02, P2-21 | check --deploy --fail-level WARNING |
 | TC-SEC.01 | Expired JWT rejected | P2-08 | P2-15 |
-| TC-SEC.02 | Campaign Manager cannot write retry policy | P2-04, P2-05 | RBAC truth-table test (retry_policy.write); endpoint wiring Phase 3 |
-| TC-SEC.03 | Full role x endpoint matrix | P2-04 | RBAC matrix test; per-endpoint rows extended in Phase 3+ |
+| TC-SEC.02 | Campaign Manager cannot write retry policy | P2-04, P2-05 | `test_roles_matrix.py::test_only_admin_can_write_configuration_or_manage_suppression` (done); endpoint wiring Phase 3 |
+| TC-SEC.03 | Full role x endpoint matrix | P2-04 | `test_roles_matrix.py::test_every_role_by_capability_cell` (role x capability, done); per-endpoint rows extended in Phase 3+ |
 | TC-SEC.04 | Rate limiting thresholds enforced | P2-10 | throttle tests; load-derived values stay OQ-01 |
 
 Audit has no dedicated TC row; covered by Phase 2 tests in P2-06 (append-only at three layers, rollback on audit failure) per Security-Architecture §9.

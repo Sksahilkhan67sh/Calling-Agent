@@ -6,7 +6,7 @@
 | P2-01 | Dependencies (simplejwt, axes, pyotp) | DONE | EVIDENCE P2-01 | 241630d | deps: P2-00 |
 | P2-02 | Settings and environment | DONE | EVIDENCE P2-02 | c4a65ef | deps: P2-01 |
 | P2-03 | User model extension | DONE | EVIDENCE P2-03 | 2f10629 | deps: P2-02 |
-| P2-04 | Roles, capabilities, RBAC matrix | TODO | - | - | deps: P2-03 |
+| P2-04 | Roles, capabilities, RBAC matrix | PARTIAL | EVIDENCE P2-04 | TBD | deps: P2-03 |
 | P2-05 | Permission classes and object scoping | TODO | - | - | deps: P2-04 |
 | P2-06 | audit app (append-only) | TODO | - | - | deps: P2-03 |
 | P2-07 | MFA (TOTP) with encrypted seeds | TODO | - | - | deps: P2-03, P2-06 |
@@ -40,3 +40,4 @@ Not available: Docker (compose stack), GitHub-hosted CI, network for pre-commit 
 - P2-01: deps added and locked with hashes; pyjwt pinned to 2.15.0 (cooling-off + advisory). Next: P2-02 settings and environment.
 - P2-02: auth settings, fail-fast rules, env docs, deploy check clean for prod+staging. Next: P2-03 user model extension (needs a local PostgreSQL for migration tests).
 - P2-03: User extended (epoch, password_changed_at, full_name), automatic revocation on password change/deactivation, additive reversible migration. Next: P2-04 roles, capabilities, RBAC matrix.
+- P2-04: capability registry (23), role matrix, `sync_roles` (idempotent, drift-removing), generated RBAC-MATRIX.md. PARTIAL only because the `rbac.sync` audit event needs the audit app (P2-06). Next: P2-05 permission classes and object-level scoping.

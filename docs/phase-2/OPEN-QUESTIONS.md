@@ -6,3 +6,8 @@ _Populated by the task that owns it (see PROGRESS.md)._
 - **OQ2-01 Absolute session lifetime.** Rotation makes the refresh lifetime a sliding idle timeout; an actively used session never expires. Needs a product decision on a maximum session age (would need an `auth_time` claim carried through rotation).
 - **OQ2-02 Rate values.** Phase 1 OQ-01 stays open: prod `API_`, `WEBHOOK_` and `LOGIN_RATE_LIMIT_PER_MINUTE` must come from load-test results (Environment-Config §4); record the source run and date with the deployment config.
 - **OQ2-03 Dashboard domain.** SameSite=Lax assumes dashboard and API share a registrable domain. Confirm the real hostnames (`DASHBOARD_ORIGIN` input is still an example).
+
+## From P2-04
+- **OQ2-04 Recordings/transcripts for Admin.** Currently granted to nobody by default (per-user grant). Should Admin hold `transcripts.view`/`recordings.listen` by default?
+- **OQ2-05 Sales scope.** What does "assigned" mean for Sales / Follow-up (per-campaign assignment, or all contacts)? Does the contact view include attempt history for Sales? Phase 3 must decide with `for_user()`.
+- **OQ2-06 Per-user grant workflow.** Phase 2 has no command or endpoint to grant `recordings.listen` to a single user; `assign_role`/Django ORM only. Decide if a `grant_capability` command is needed before Phase 5/6.

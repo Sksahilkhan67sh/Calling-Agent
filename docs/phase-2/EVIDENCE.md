@@ -35,3 +35,13 @@
   2. deactivation no longer bumps → `test_deactivation_bumps_but_reactivation_and_resave_do_not` FAILED.
 - Full suite: 260 passed (unit + integration, real PostgreSQL and Redis); coverage `apps/core`, `apps/accounts`, `config`: 100 % (799 statements, 0 missed).
 - `ruff check`, `ruff format --check`, `mypy apps config` (strict on accounts): clean.
+
+## P2-04
+- `pytest -q` (real PostgreSQL + Redis): 378 passed, coverage 100 % (884 statements). New: `tests/accounts/test_roles_matrix.py` (full role x capability cell test, hand-written truth table, client-grantable invariants, generated-doc drift test) and `tests/accounts/test_sync_roles.py` (first run, second run is a no-op, command idempotent, drift repaired in both directions, System drift removed, per-user grants untouched, missing permission fails closed).
+- `python manage.py makemigrations --check --dry-run`: no changes; `sqlmigrate accounts 0003`: no-op (Meta options only).
+- Mutation spot-checks (protection removed -> named tests fail, then restored):
+  1. Campaign Manager given `retry_policy.write` -> 4 failures (`test_role_capabilities_match_the_reviewed_truth_table[Campaign Manager]`, `test_only_admin_can_write_configuration_or_manage_suppression`, the cell test, and the generated-doc drift test).
+  2. `sync_roles` stops removing drift -> `test_drift_is_repaired_in_both_directions` and `test_system_group_drift_is_removed` fail.
+- A first attempt at mutation 1 hit the wrong line (registry tuple instead of the role set); it was discarded and redone precisely.
+- `ruff`, `ruff format --check`, `mypy apps config scripts`: clean.
+- NOT DONE here: the audit event for `rbac.sync` (needs the audit app, P2-06).

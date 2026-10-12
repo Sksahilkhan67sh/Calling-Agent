@@ -8,6 +8,8 @@ from django.db.models import F
 from django.db.models.functions import Lower
 from django.utils import timezone
 
+from apps.accounts.roles import CAPABILITIES
+
 
 class UserManager(BaseUserManager["User"]):
     use_in_migrations = True
@@ -59,6 +61,8 @@ class User(AbstractUser):
         constraints = [
             models.UniqueConstraint(Lower("email"), name="accounts_user_email_ci_unique"),
         ]
+        # Capabilities are custom permissions; the registry in roles.py is the single source.
+        permissions = [(c.name, c.description) for c in CAPABILITIES]
 
     def save(self, **kwargs: Any) -> None:
         """Persist the user. A password change or a deactivation revokes all of the user's sessions.
