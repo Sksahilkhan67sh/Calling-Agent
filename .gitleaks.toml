@@ -1,0 +1,10 @@
+title = "calling-agent"
+
+[extend]
+useDefault = true
+
+# Test fixtures and the dev example env contain deliberately fake, secret-shaped strings
+# (they prove the redaction filter works). Real code paths stay fully scanned.
+[allowlist]
+description = "fake fixtures"
+paths = ['''backend/tests/''', '''\.env\.example$''']

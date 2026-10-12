@@ -1,0 +1,3 @@
+-r base.in
+gunicorn==26.2.0
+uvicorn-worker==0.4.0

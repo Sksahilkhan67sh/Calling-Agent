@@ -1,0 +1,17 @@
+.git
+.github
+.env
+.env.*
+!.env.example
+**/__pycache__
+**/*.pyc
+.venv
+.pytest_cache
+.mypy_cache
+.ruff_cache
+backend/tests
+backend/htmlcov
+backend/.coverage
+docs
+spike
+"ai_calling agent"
