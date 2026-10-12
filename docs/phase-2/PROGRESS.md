@@ -4,7 +4,7 @@
 |---|---|---|---|---|---|
 | P2-00 | Recon and scaffolding | DONE | EVIDENCE P2-00 | e22ab28 | deps: - |
 | P2-01 | Dependencies (simplejwt, axes, pyotp) | DONE | EVIDENCE P2-01 | 241630d | deps: P2-00 |
-| P2-02 | Settings and environment | TODO | - | - | deps: P2-01 |
+| P2-02 | Settings and environment | DONE | EVIDENCE P2-02 | TBD | deps: P2-01 |
 | P2-03 | User model extension | TODO | - | - | deps: P2-02 |
 | P2-04 | Roles, capabilities, RBAC matrix | TODO | - | - | deps: P2-03 |
 | P2-05 | Permission classes and object scoping | TODO | - | - | deps: P2-04 |
@@ -37,3 +37,4 @@ No PostgreSQL, Redis or Docker binaries found. DB-trigger, privilege (P2-17) and
 ## Iteration log
 - P2-00: base gate passed (main contains phase-0 + phase-1 tips and backend/apps/core). Branch phase-2/identity-security created.
 - P2-01: deps added and locked with hashes; pyjwt pinned to 2.15.0 (cooling-off + advisory). Next: P2-02 settings and environment.
+- P2-02: auth settings, fail-fast rules, env docs, deploy check clean for prod+staging. Next: P2-03 user model extension (needs a local PostgreSQL for migration tests).

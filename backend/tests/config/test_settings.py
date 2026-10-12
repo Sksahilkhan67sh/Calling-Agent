@@ -19,6 +19,11 @@ PROD_REQUIRED = [
     "DOGRAH_EFFECTIVE_CONCURRENCY",
     "API_RATE_LIMIT_PER_MINUTE",
     "WEBHOOK_RATE_LIMIT_PER_MINUTE",
+    "LOGIN_RATE_LIMIT_PER_MINUTE",
+    "AXES_FAILURE_LIMIT",
+    "TRUSTED_PROXY_COUNT",
+    "CORS_ALLOWED_ORIGINS",
+    "CSRF_TRUSTED_ORIGINS",
 ]
 DOC = Path(__file__).resolve().parents[3] / "docs" / "phase-1" / "ENV-VARIABLES.md"
 
@@ -34,7 +39,7 @@ def test_production_posture(module, prod_env, monkeypatch):
     assert s.SESSION_COOKIE_SECURE and s.CSRF_COOKIE_SECURE and s.SECURE_CONTENT_TYPE_NOSNIFF
     assert s.X_FRAME_OPTIONS == "DENY" and s.SECURE_REFERRER_POLICY == "same-origin"
     assert "Argon2" in s.PASSWORD_HASHERS[0]
-    assert s.CORS_ALLOWED_ORIGINS == [] and s.CORS_ALLOW_ALL_ORIGINS is False
+    assert s.CORS_ALLOWED_ORIGINS == ["https://dashboard.calls.test"] and s.CORS_ALLOW_ALL_ORIGINS is False
     assert s.DATABASES["default"]["ATOMIC_REQUESTS"] is False
     assert s.REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] == ["apps.core.permissions.DefaultDeny"]
     assert s.REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"] == []
@@ -82,7 +87,7 @@ def test_prod_fails_fast_naming_variable_only(name, prod_env, monkeypatch):
         ({"DOGRAH_EFFECTIVE_CONCURRENCY": "ten"}, "integer"),
         ({"FIELD_ENCRYPTION_KEYS": "k1:AAAA"}, "32 bytes"),
         ({"PHONE_HMAC_KEY": "AAAA"}, "at least"),
-        ({"JWT_SIGNING_KEY": "tooshort"}, "32 characters"),
+        ({"JWT_SIGNING_KEY": "j" * 49}, "50 characters"),
     ],
 )
 def test_prod_rejects_unsafe_values(override, needle, prod_env, monkeypatch):

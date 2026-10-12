@@ -1,18 +1,22 @@
 """Settings shared by every environment. All environment access goes through settings_utils."""
 
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qsl, unquote, urlsplit
 
 from kombu import Exchange, Queue
 
+from apps.accounts.roles import ALL_ROLES, ROLE_ADMIN, ROLE_CAMPAIGN_MANAGER
 from apps.core.crypto import parse_encryption_keys, parse_hmac_key
 from apps.core.logging import build_logging_config
 from apps.core.settings_utils import (
     ConfigError,
+    as_bool,
     as_csv_hosts,
     as_int,
     as_list,
+    as_origins,
     optional,
     required,
 )
@@ -135,8 +139,11 @@ SPECTACULAR_SETTINGS = {
     "SERVE_AUTHENTICATION": [],
 }
 
-CORS_ALLOWED_ORIGINS = as_list("CORS_ALLOWED_ORIGINS", [])
+# ---- browser access: cookie auth needs credentialed CORS, so prod requires an explicit origin list
+CORS_ALLOWED_ORIGINS = as_origins("CORS_ALLOWED_ORIGINS", [])
 CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOW_CREDENTIALS = True
+CSRF_TRUSTED_ORIGINS = as_origins("CSRF_TRUSTED_ORIGINS", [])
 
 # ---- secrets for later phases, validated now so a bad key never reaches production
 FIELD_ENCRYPTION_KEYS = parse_encryption_keys(required("FIELD_ENCRYPTION_KEYS", secret=True))
@@ -144,6 +151,87 @@ PHONE_HMAC_KEY = parse_hmac_key(required("PHONE_HMAC_KEY", secret=True))
 JWT_SIGNING_KEY = required("JWT_SIGNING_KEY", secret=True)
 DOGRAH_EFFECTIVE_CONCURRENCY = as_int("DOGRAH_EFFECTIVE_CONCURRENCY", minimum=1)  # used from Phase 4
 DOGRAH_WEBHOOK_HEADER_NAME = optional("DOGRAH_WEBHOOK_HEADER_NAME", "X-Dograh-Webhook-Secret")
+
+# ---- authentication (Django-Backend-Design §4.1). Algorithm, issuer, audience and cookie names are
+# code, not environment: a deployment must not be able to weaken them.
+API_VERSION_PREFIX = "v1"  # Backend/API-Specification.yaml servers[].url ends in /v1
+JWT_ALGORITHM = "HS256"  # symmetric: one service signs and verifies, so no key distribution
+JWT_ISSUER = "ai-calling-agent"
+JWT_AUDIENCE = "ai-calling-agent-dashboard"
+JWT_ACCESS_LIFETIME_SECONDS = as_int("JWT_ACCESS_LIFETIME_SECONDS", 900, minimum=60, maximum=3600)
+# Refresh tokens rotate on every use, so this is an idle timeout: 24 h idle forces a new login (+MFA).
+JWT_REFRESH_LIFETIME_SECONDS = as_int("JWT_REFRESH_LIFETIME_SECONDS", 86400, minimum=3600, maximum=2592000)
+SIMPLE_JWT: dict[str, Any] = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(seconds=JWT_ACCESS_LIFETIME_SECONDS),
+    "REFRESH_TOKEN_LIFETIME": timedelta(seconds=JWT_REFRESH_LIFETIME_SECONDS),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "UPDATE_LAST_LOGIN": False,
+    "ALGORITHM": JWT_ALGORITHM,
+    "SIGNING_KEY": JWT_SIGNING_KEY,
+    "ISSUER": JWT_ISSUER,
+    "AUDIENCE": JWT_AUDIENCE,
+    "USER_ID_FIELD": "id",
+    "USER_ID_CLAIM": "sub",
+}
+
+AUTH_COOKIE_SAMESITE = optional("AUTH_COOKIE_SAMESITE", "Lax").capitalize()
+if AUTH_COOKIE_SAMESITE not in {"Lax", "Strict"}:
+    raise ConfigError("AUTH_COOKIE_SAMESITE must be Lax or Strict")
+AUTH_COOKIE_DOMAIN = optional("AUTH_COOKIE_DOMAIN") or None
+AUTH_TOKENS_IN_BODY = as_bool("AUTH_TOKENS_IN_BODY", False)  # non-browser clients only
+AUTH_REFRESH_COOKIE_PATH = f"/{API_VERSION_PREFIX}/auth/"
+
+
+def cookie_names(*, secure: bool, domain: str | None) -> tuple[str, str, str]:
+    """(access, refresh, csrf) cookie names.
+
+    ``__Host-`` requires Secure, Path=/ and no Domain, so it suits the access and CSRF cookies. The refresh
+    cookie is path-scoped, which ``__Host-`` forbids, so it uses ``__Secure-``. Browsers refuse prefixed
+    cookies over plain HTTP, hence plain names when not secure (local dev only).
+    """
+    if not secure:
+        return "access", "refresh", "csrftoken"
+    wide = "__Secure-" if domain else "__Host-"
+    return f"{wide}access", "__Secure-refresh", f"{wide}csrftoken"
+
+
+AUTH_COOKIE_SECURE = True
+AUTH_ACCESS_COOKIE_NAME, AUTH_REFRESH_COOKIE_NAME, CSRF_COOKIE_NAME = cookie_names(
+    secure=AUTH_COOKIE_SECURE, domain=AUTH_COOKIE_DOMAIN
+)
+# Double-submit CSRF: the SPA reads the CSRF cookie and echoes it in X-CSRFToken, so it is not HttpOnly.
+CSRF_COOKIE_HTTPONLY = False
+CSRF_COOKIE_SAMESITE = AUTH_COOKIE_SAMESITE
+CSRF_COOKIE_DOMAIN = AUTH_COOKIE_DOMAIN
+
+# ---- brute-force protection (django-axes is wired in P2-10). Production requires explicit values.
+AXES_FAILURE_LIMIT = as_int("AXES_FAILURE_LIMIT", 5, minimum=1)
+AXES_COOLOFF_MINUTES = as_int("AXES_COOLOFF_MINUTES", 15, minimum=1)
+AXES_COOLOFF_TIME = timedelta(minutes=AXES_COOLOFF_MINUTES)
+AXES_LOCKOUT_PARAMETERS = [["username", "ip_address"]]  # one account from one address, not a global lock
+AXES_RESET_ON_SUCCESS = True
+# Number of reverse proxies in front of the API. The client address is the entry that many hops from
+# the right of X-Forwarded-For; the left-most value is attacker-controlled and never trusted.
+TRUSTED_PROXY_COUNT = as_int("TRUSTED_PROXY_COUNT", 0, minimum=0, maximum=10)
+
+# ---- MFA (TOTP, RFC 6238). SHA-1 and 6 digits are what authenticator apps universally support.
+MFA_REQUIRED_ROLES = as_list("MFA_REQUIRED_ROLES", [ROLE_ADMIN, ROLE_CAMPAIGN_MANAGER])
+if not set(MFA_REQUIRED_ROLES) <= set(ALL_ROLES):
+    raise ConfigError("MFA_REQUIRED_ROLES contains an unknown role name")
+MFA_ISSUER_NAME = optional("MFA_ISSUER_NAME", "AI Calling Agent")
+MFA_ENROLLMENT_TOKEN_LIFETIME_SECONDS = as_int(
+    "MFA_ENROLLMENT_TOKEN_LIFETIME_SECONDS", 600, minimum=60, maximum=1800
+)
+MFA_TOTP_ALGORITHM = "SHA1"
+MFA_TOTP_DIGITS = 6
+MFA_TOTP_PERIOD_SECONDS = 30
+MFA_TOTP_WINDOW_STEPS = 1  # accept the previous and next step (clock drift)
+
+# ---- machine clients
+API_CLIENT_LAST_USED_WRITE_INTERVAL_SECONDS = as_int(
+    "API_CLIENT_LAST_USED_WRITE_INTERVAL_SECONDS", 60, minimum=1, maximum=3600
+)
 
 # ---- logging
 LOG_LEVEL = optional("LOG_LEVEL", "INFO").upper()

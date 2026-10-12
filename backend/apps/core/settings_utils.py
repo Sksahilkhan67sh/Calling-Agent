@@ -25,6 +25,7 @@ __all__ = [
     "as_csv_hosts",
     "as_int",
     "as_list",
+    "as_origins",
     "looks_like_placeholder",
     "optional",
     "reject_placeholder",
@@ -50,6 +51,7 @@ _PLACEHOLDER_PATTERN = re.compile(
     re.IGNORECASE,
 )
 _HOST_PATTERN = re.compile(r"^(?=.{1,253}$)[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$")
+_ORIGIN_PATTERN = re.compile(r"^https?://[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?(:[0-9]{1,5})?$")
 
 
 def _record(name: str, secret: bool) -> None:
@@ -159,3 +161,17 @@ def as_csv_hosts(
         if not _HOST_PATTERN.match(host):
             raise ConfigError(f"{name} contains an invalid host entry")
     return hosts
+
+
+def as_origins(
+    name: str, default: list[str] | None = None, *, env: Mapping[str, str] | None = None
+) -> list[str]:
+    """Browser origins (``scheme://host[:port]``): no wildcard, path, query or trailing slash."""
+    origins = as_list(name, default, env=env)
+    for origin in origins:
+        if "*" in origin or not _ORIGIN_PATTERN.match(origin):
+            raise ConfigError(
+                f"{name} entries must be origins like https://host[:port], "
+                "without wildcards, paths or a trailing slash"
+            )
+    return origins
