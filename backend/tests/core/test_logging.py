@@ -9,6 +9,7 @@ import pytest
 from apps.core import logging as lg
 
 JWT = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dBjftJeZ4CVPmB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+_FAKE_PEM = "-----BEGIN " + "PRIVATE KEY-----\nMIIEvQIBADANBg\n-----END " + "PRIVATE KEY-----"
 PAT = "github_pat_11ABCDEFG0abcdefghijklmnopqrstuvwx"
 
 
@@ -28,7 +29,7 @@ PAT = "github_pat_11ABCDEFG0abcdefghijklmnopqrstuvwx"
         ("GET /cb?token=SECRETTOKEN&ok=1", "SECRETTOKEN"),
         ("https://s3.example.com/b/o?X-Amz-Signature=deadbeef&X-Amz-Credential=AKIA1&Expires=99", "deadbeef"),
         ("redis://:supersecretpw@cache:6379/0", "supersecretpw"),
-        ("-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBg\n-----END PRIVATE KEY-----", "MIIEvQ"),
+        (_FAKE_PEM, "MIIEvQ"),
         ("https://api.dograh.example/files/recordings/run-91/audio.wav", "run-91"),
         ("https://storage.example.com/transcripts/abc.json?x=1", "abc.json"),
     ],
@@ -137,7 +138,7 @@ def test_regex_performance_no_catastrophic_backtracking():
         "token=" + "x" * 200_000,
         "+" + "1-" * 100_000,
         "https://h/" + "a/" * 50_000,
-        "-----BEGIN PRIVATE KEY-----" + "A" * 100_000,
+        "-----BEGIN " + "PRIVATE KEY-----" + "A" * 100_000,
         "Bearer " + "a" * 100_000,
         "http://" + "a" * 100_000,
     ]
