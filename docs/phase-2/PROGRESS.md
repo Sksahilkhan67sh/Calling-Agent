@@ -7,7 +7,7 @@
 | P2-02 | Settings and environment | DONE | EVIDENCE P2-02 | c4a65ef | deps: P2-01 |
 | P2-03 | User model extension | DONE | EVIDENCE P2-03 | 2f10629 | deps: P2-02 |
 | P2-04 | Roles, capabilities, RBAC matrix | PARTIAL | EVIDENCE P2-04 | 21b8d66 | deps: P2-03 |
-| P2-05 | Permission classes and object scoping | DONE | EVIDENCE P2-05 | TBD | deps: P2-04 |
+| P2-05 | Permission classes and object scoping | DONE | EVIDENCE P2-05 | dce4947 | deps: P2-04 |
 | P2-06 | audit app (append-only) | TODO | - | - | deps: P2-03 |
 | P2-07 | MFA (TOTP) with encrypted seeds | TODO | - | - | deps: P2-03, P2-06 |
 | P2-08 | Cookie JWT authentication | TODO | - | - | deps: P2-03, P2-05 |
