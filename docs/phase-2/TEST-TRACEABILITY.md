@@ -8,8 +8,8 @@ Source: `Testing/Test-Cases.xlsx` rows matching auth/MFA/lockout/RBAC/audit/secu
 | TC-AU.02 | Refresh token is single-use | P2-08, P2-09 | P2-15 (refresh reuse, logout-then-reuse) |
 | TC-AU.03 | Access token expires | P2-08 | P2-15 (expired token) |
 | TC-AU.04 | Brute-force lockout and throttling | P2-10 | P2-15 (password/MFA brute force, stuffing) |
-| TC-AU.05 | Default deny on every endpoint | P2-05 | existing test_default_deny extended |
-| TC-AU.06 | Object-level scoping between Campaign Managers | P2-05 | P2-15 (IDOR → 404) |
+| TC-AU.05 | Default deny on every endpoint | P2-05 | `tests/test_default_deny.py` (extended: HasCapability required, reviewed exceptions with justification) |
+| TC-AU.06 | Object-level scoping between Campaign Managers | P2-05 | `tests/accounts/test_scoping.py` (list/detail/modify, UUID guessing -> 404); attack suite repeat in P2-15 |
 | TC-AU.07 | Tokens in httpOnly cookies; CSRF enforced | P2-08, P2-09 | P2-15 (cookie attrs, CSRF) |
 | TC-AU.08 | Django admin not exposed | P2-19, P2-20 | admin-absent test (URL resolve + INSTALLED_APPS) |
 | TC-AU.09 | Deployment checks pass | P2-02, P2-21 | check --deploy --fail-level WARNING |

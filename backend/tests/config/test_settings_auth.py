@@ -171,3 +171,13 @@ def test_as_origins_rejects_everything_else(value):
     with pytest.raises(ConfigError) as exc:
         as_origins("X", env={"X": value})
     assert value not in str(exc.value)
+
+
+@pytest.mark.parametrize("module", ["config.settings.dev", "config.settings.staging", "config.settings.prod"])
+def test_test_only_app_is_never_installed_outside_test_settings(module, prod_env, monkeypatch):
+    s = load_settings(module, prod_env, monkeypatch)
+    assert "tests.testapp" not in s.INSTALLED_APPS
+
+
+def test_test_settings_install_the_test_app(monkeypatch):
+    assert "tests.testapp" in load_settings("config.settings.test", {}, monkeypatch).INSTALLED_APPS

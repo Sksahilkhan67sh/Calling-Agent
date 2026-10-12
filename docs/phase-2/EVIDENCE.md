@@ -45,3 +45,14 @@
 - A first attempt at mutation 1 hit the wrong line (registry tuple instead of the role set); it was discarded and redone precisely.
 - `ruff`, `ruff format --check`, `mypy apps config scripts`: clean.
 - NOT DONE here: the audit event for `rbac.sync` (needs the audit app, P2-06).
+
+## P2-05
+- `pytest -q` (real PostgreSQL + Redis): 430 passed, coverage 100 % (963 statements; `apps/core`, `apps/accounts`, `config`). New: `test_permissions.py` (24), `test_scoping.py` (18), `test_scoping_lint.py`, extended `tests/test_default_deny.py`, settings isolation tests.
+- Negative tests that show the guards fire: Campaign Manager -> `PUT /retry-policy/` 403 (Admin 200); Sales `POST`/`PATCH` 403; another manager's row -> 404 identical to a random UUID; superuser flag grants nothing (`has_perm` says True, `has_capability` False); `IsAuthenticated`-only view and a view without `HasCapability` are reported by the default-deny walk; a view bypassing `ScopedViewMixin` is reported by the lint; `ObjectScoped` hides foreign objects with 404.
+- Mutation spot-checks (protection removed -> named tests fail, then restored):
+  1. superuser bypass added to `capabilities()` -> `test_superuser_flag_does_not_bypass_rbac` FAILED.
+  2. `ScopedViewMixin` stops calling `for_user` -> 4 scoping tests FAILED (own-rows list, 404 foreign detail, UUID-guess parity, cross-manager modify).
+  3. permission errors fail open (`return True` in the exception branch) -> `test_errors_during_the_check_deny_and_log_without_secrets` FAILED.
+- Process note: after mutation 3 the first full run reported 1 failure although the source matched its backup byte for byte. Cause (inferred, not proven): the mutation changed `False` to `True` (same file size) and the restore happened within the same second, so Python reused the stale `.pyc`. After deleting `__pycache__`, the suite passed 3 times in a row (430 passed). Future mutation checks clear bytecode caches first.
+- The log record from the fail-closed test shows the Phase 1 redaction at work (`password=[REDACTED]` in the logged exception).
+- `ruff`, `ruff format --check`, `mypy apps config scripts`: clean.

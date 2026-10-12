@@ -11,3 +11,6 @@ _Populated by the task that owns it (see PROGRESS.md)._
 - **OQ2-04 Recordings/transcripts for Admin.** Currently granted to nobody by default (per-user grant). Should Admin hold `transcripts.view`/`recordings.listen` by default?
 - **OQ2-05 Sales scope.** What does "assigned" mean for Sales / Follow-up (per-campaign assignment, or all contacts)? Does the contact view include attempt history for Sales? Phase 3 must decide with `for_user()`.
 - **OQ2-06 Per-user grant workflow.** Phase 2 has no command or endpoint to grant `recordings.listen` to a single user; `assign_role`/Django ORM only. Decide if a `grant_capability` command is needed before Phase 5/6.
+
+## From P2-05
+- **OQ2-07 Scoping lint coverage.** A view that builds its queryset only in `get_queryset()` is not detected by the lint (see DECISIONS P2-05). Phase 3 should either keep the `queryset =` idiom or extend the lint (e.g. require `scoped_model` on every view with a serializer over a scoped model).

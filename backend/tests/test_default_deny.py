@@ -1,27 +1,31 @@
 """No endpoint without declared permissions (Django-Backend-Design §8).
 
 Walks the URL conf; fails for any view that is not DRF, declares no permission classes,
-or silently inherits the default deny. Anonymous access is allowed only for the reviewed
-allowlist below.
+silently inherits the default deny, or declares no ``HasCapability``. Views without a capability
+(anonymous or merely authenticated) must be on the reviewed allowlist below, each with a written
+justification (Phase 2, P2-05).
 """
 
 import pytest
 from django.urls import URLPattern, URLResolver
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 
+from apps.accounts.permissions import CapabilityPermission, HasCapability
 from apps.core.health import HealthLive, HealthReady
 from apps.core.permissions import DefaultDeny, PublicEndpoint
 from config.urls import build_urlpatterns
 
-# Reviewed anonymous surface. Docs views exist only when ENABLE_API_DOCS (dev) is true.
-ANONYMOUS_ALLOWLIST = {
-    "HealthLive",
-    "HealthReady",
-    "SpectacularAPIView",
-    "SpectacularSwaggerView",
-    "SpectacularRedocView",
+# Reviewed exceptions: views that may omit HasCapability. Every entry needs a justification.
+# Adding to this dict is a security decision and must be reviewed. Auth views join in P2-09.
+REVIEWED_EXCEPTIONS = {
+    "HealthLive": "Liveness probe for the orchestrator; returns no data.",
+    "HealthReady": "Readiness probe; reports only ok/degraded, no internals.",
+    "SpectacularAPIView": "OpenAPI schema; mounted only when ENABLE_API_DOCS (dev), never in prod.",
+    "SpectacularSwaggerView": "API docs UI; mounted only when ENABLE_API_DOCS (dev), never in prod.",
+    "SpectacularRedocView": "API docs UI; mounted only when ENABLE_API_DOCS (dev), never in prod.",
 }
+ANONYMOUS_ALLOWLIST = set(REVIEWED_EXCEPTIONS)
 
 
 def _views(patterns):
@@ -44,8 +48,14 @@ def find_violations(patterns) -> list[str]:
             problems.append(f"{route}: {cls.__name__} has empty permission_classes (open to everyone)")
         elif all(p is DefaultDeny for p in perms):
             problems.append(f"{route}: {cls.__name__} declares no permissions (default deny)")
-        elif any(p in (PublicEndpoint, AllowAny) for p in perms) and cls.__name__ not in ANONYMOUS_ALLOWLIST:
+        elif any(p in (PublicEndpoint, AllowAny) for p in perms) and cls.__name__ not in REVIEWED_EXCEPTIONS:
             problems.append(f"{route}: {cls.__name__} is anonymous but not in the reviewed allowlist")
+        elif cls.__name__ not in REVIEWED_EXCEPTIONS and not any(
+            isinstance(p, type) and issubclass(p, CapabilityPermission) for p in perms
+        ):
+            problems.append(
+                f"{route}: {cls.__name__} declares no HasCapability and is not a reviewed exception"
+            )
     return problems
 
 
@@ -54,6 +64,17 @@ def test_every_view_declares_permissions(docs):
     patterns = build_urlpatterns(enable_api_docs=docs)
     assert len(list(_views(patterns))) == (5 if docs else 2)
     assert find_violations(patterns) == []
+
+
+def test_testapp_views_all_declare_capabilities():
+    from tests.testapp.urls import unscoped_patterns, urlpatterns
+
+    assert len(list(_views(urlpatterns))) == 6
+    assert find_violations([*urlpatterns, *unscoped_patterns]) == []
+
+
+def test_exceptions_carry_a_written_justification():
+    assert all(len(text) > 20 for text in REVIEWED_EXCEPTIONS.values())
 
 
 def test_negative_undeclared_view_is_detected():
@@ -67,6 +88,12 @@ def test_negative_undeclared_view_is_detected():
     class SneakyAnonymous(APIView):
         permission_classes = [PublicEndpoint]
 
+    class AuthenticatedOnly(APIView):
+        permission_classes = [IsAuthenticated]  # logged in, but no capability: any user could call it
+
+    class WithCapability(APIView):
+        permission_classes = [HasCapability("campaigns.view_own")]
+
     from django.urls import path
 
     patterns = [
@@ -74,10 +101,15 @@ def test_negative_undeclared_view_is_detected():
         path("b", OpenView.as_view()),
         path("c", SneakyAnonymous.as_view()),
         path("d", lambda request: None),
+        path("e", AuthenticatedOnly.as_view()),
         path("ok", HealthLive.as_view()),
+        path("ok2", WithCapability.as_view()),
     ]
     problems = find_violations(patterns)
-    assert len(problems) == 4 and not any("ok:" in p for p in problems)
+    assert len(problems) == 5 and not any("ok:" in p or "ok2:" in p for p in problems)
+    assert "declares no HasCapability" in next(
+        p for p in problems if p.startswith("e/") or p.startswith("e:")
+    )
 
 
 def test_default_permission_is_deny_and_denies(client):

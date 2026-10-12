@@ -2,13 +2,13 @@ import uuid
 from typing import Any, ClassVar
 
 from django.conf import settings
-from django.contrib.auth.models import AbstractUser, BaseUserManager
+from django.contrib.auth.models import AbstractUser, BaseUserManager, Permission
 from django.db import models, transaction
-from django.db.models import F
+from django.db.models import F, Q
 from django.db.models.functions import Lower
 from django.utils import timezone
 
-from apps.accounts.roles import CAPABILITIES
+from apps.accounts.roles import CAPABILITIES, CAPABILITY_NAMES
 
 
 class UserManager(BaseUserManager["User"]):
@@ -52,6 +52,8 @@ class User(AbstractUser):
     full_name = models.CharField(max_length=150, blank=True, default="", db_default="")
     auth_epoch = models.PositiveIntegerField(default=0, db_default=0, editable=False)
     password_changed_at = models.DateTimeField(null=True, blank=True, editable=False)
+
+    _capabilities_cache: frozenset[str] | None = None
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS: ClassVar[list[str]] = []
@@ -117,3 +119,33 @@ class User(AbstractUser):
     def requires_mfa(self) -> bool:
         """True when any of the user's roles is in ``MFA_REQUIRED_ROLES``. Computed, never stored."""
         return bool(self.role_names() & set(settings.MFA_REQUIRED_ROLES))
+
+    def capabilities(self) -> frozenset[str]:
+        """Capabilities from the user's roles (group permissions) plus per-user grants.
+
+        Deliberately ignores ``is_superuser``: the flag must never bypass RBAC. Inactive and unsaved users
+        hold nothing. Cached on the instance (one query per request); ``refresh_from_db`` clears it.
+        """
+        if self._capabilities_cache is None:
+            if not self.is_active or self._state.adding:
+                self._capabilities_cache = frozenset()
+            else:
+                codenames = (
+                    Permission.objects.filter(
+                        content_type__app_label="accounts",
+                        content_type__model="user",
+                        codename__in=CAPABILITY_NAMES,
+                    )
+                    .filter(Q(group__user=self) | Q(user=self))
+                    .values_list("codename", flat=True)
+                    .distinct()
+                )
+                self._capabilities_cache = frozenset(codenames)
+        return self._capabilities_cache
+
+    def has_capability(self, capability: str) -> bool:
+        return capability in self.capabilities()
+
+    def refresh_from_db(self, *args: Any, **kwargs: Any) -> None:
+        self._capabilities_cache = None
+        super().refresh_from_db(*args, **kwargs)
