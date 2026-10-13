@@ -3,7 +3,8 @@ from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveAPIView,
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.accounts.permissions import HasCapability, ObjectScoped
+from apps.accounts.authentication import EnrollmentTokenAuthentication
+from apps.accounts.permissions import HasCapability, IsEnrollmentCredential, ObjectScoped
 from apps.accounts.querysets import ScopedViewMixin
 from tests.testapp.models import ScopedThing
 
@@ -62,3 +63,23 @@ class UnscopedDetail(RetrieveAPIView):
     queryset = ScopedThing.objects.all()
     serializer_class = ThingSerializer
     permission_classes = [HasCapability("campaigns.view_own"), ObjectScoped]
+
+
+class EnrollProbe(APIView):
+    """Stands in for the enrolment endpoints (P2-09): only the restricted credential may pass."""
+
+    authentication_classes = [EnrollmentTokenAuthentication]
+    permission_classes = [IsEnrollmentCredential]
+
+    def post(self, request):
+        return Response({"user": str(request.user.pk)})
+
+
+class EnrollCapabilityProbe(APIView):
+    """A misconfigured view: lists the enrolment authenticator AND a capability permission."""
+
+    authentication_classes = [EnrollmentTokenAuthentication]
+    permission_classes = [HasCapability("campaigns.view_own")]
+
+    def get(self, request):
+        return Response({"leaked": True})

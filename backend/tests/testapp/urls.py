@@ -9,6 +9,8 @@ urlpatterns = [
     path("things/<uuid:pk>/status/", views.ThingStatus.as_view()),
     path("things/<uuid:pk>/recording/", views.ThingRecording.as_view()),
     path("retry-policy/", views.RetryPolicyWrite.as_view()),
+    path("enroll-probe/", views.EnrollProbe.as_view()),
+    path("enroll-capability-probe/", views.EnrollCapabilityProbe.as_view()),
 ]
 # Not part of urlpatterns: used by the lint tests and the ObjectScoped backstop test.
 unscoped_patterns = [path("unscoped/<uuid:pk>/", views.UnscopedDetail.as_view())]

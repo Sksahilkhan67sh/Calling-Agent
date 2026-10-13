@@ -4,7 +4,7 @@ Source: `Testing/Test-Cases.xlsx` rows matching auth/MFA/lockout/RBAC/audit/secu
 
 | Test case | Title | Implementing task | Covering tests |
 |---|---|---|---|
-| TC-AU.01 | MFA required for Admin and Campaign Manager | P2-07, P2-09 | P2-15 |
+| TC-AU.01 | MFA required for Admin and Campaign Manager | P2-07, P2-09 | `test_mfa_credential.py::test_must_enroll_follows_roles_until_a_device_is_active`, settings tests (prod requires Admin + Campaign Manager); login enforcement P2-09, attack tests P2-15 |
 | TC-AU.02 | Refresh token is single-use | P2-08, P2-09 | P2-15 (refresh reuse, logout-then-reuse) |
 | TC-AU.03 | Access token expires | P2-08 | P2-15 (expired token) |
 | TC-AU.04 | Brute-force lockout and throttling | P2-10 | P2-15 (password/MFA brute force, stuffing) |

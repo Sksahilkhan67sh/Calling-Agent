@@ -9,7 +9,7 @@
 | P2-04 | Roles, capabilities, RBAC matrix | DONE | EVIDENCE P2-04, P2-06 | 21b8d66, f023985 | deps: P2-03 |
 | P2-05 | Permission classes and object scoping | DONE | EVIDENCE P2-05 | dce4947 | deps: P2-04 |
 | P2-06 | audit app (append-only) | DONE | EVIDENCE P2-06 | f023985 | deps: P2-03 |
-| P2-07 | MFA (TOTP) with encrypted seeds | TODO | - | - | deps: P2-03, P2-06 |
+| P2-07 | MFA (TOTP) with encrypted seeds | DONE | EVIDENCE P2-07 | TBD | deps: P2-03, P2-06 |
 | P2-08 | Cookie JWT authentication | TODO | - | - | deps: P2-03, P2-05 |
 | P2-09 | Auth endpoints | TODO | - | - | deps: P2-07, P2-08 |
 | P2-10 | Lockout, client IP, throttling | TODO | - | - | deps: P2-09 |
@@ -43,3 +43,4 @@ Not available: Docker (compose stack), GitHub-hosted CI, network for pre-commit 
 - P2-04: capability registry (23), role matrix, `sync_roles` (idempotent, drift-removing), generated RBAC-MATRIX.md. PARTIAL only because the `rbac.sync` audit event needs the audit app (P2-06). Next: P2-05 permission classes and object-level scoping.
 - P2-05: HasCapability (any-of, fail-closed, no superuser bypass), ScopedQuerySet/ScopedViewMixin/ObjectScoped, test-only app, default-deny extended. Next: P2-06 audit app (append-only at three layers); it also closes the `rbac.sync` audit event left open by P2-04.
 - P2-06: audit app with model, trigger and (pending P2-17) privilege layers; audit.record/audited fail closed; redaction; `rbac.sync` event wired, which completes P2-04 (now DONE). Next: P2-07 MFA (TOTP) with encrypted seeds.
+- P2-07: TOTP service (RFC 6238 vectors, +/-1 window, constant-time, replay-protected), seeds AES-GCM-encrypted and bound to their row, enrolment/confirm/reset, restricted `MfaEnroll` credential refused by HasCapability. HTTP-level restriction against real default authenticators is retested in P2-09/P2-15 (OQ2-13). Next: P2-08 cookie JWT authentication.

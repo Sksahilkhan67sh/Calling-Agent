@@ -5,6 +5,7 @@ import logging
 import pytest
 from django.contrib.auth.models import Permission
 from rest_framework.exceptions import NotAuthenticated
+from rest_framework.request import Request
 from rest_framework.test import APIRequestFactory
 from rest_framework.views import APIView
 
@@ -14,9 +15,10 @@ from apps.accounts.roles import ROLE_ADMIN, ROLE_CAMPAIGN_MANAGER, ROLE_SALES_FO
 pytestmark = [pytest.mark.django_db, pytest.mark.integration]
 
 
-def decide(permission, user) -> bool:
-    request = APIRequestFactory().get("/x")
+def decide(permission, user, auth=None) -> bool:
+    request = Request(APIRequestFactory().get("/x"))
     request.user = user
+    request.auth = auth
     return permission().has_permission(request, APIView())
 
 
@@ -159,3 +161,18 @@ def test_api_exceptions_are_not_swallowed():
 
     with pytest.raises(NotAuthenticated):
         decide(HasCapability("campaigns.create"), Rejecting())
+
+
+def test_restricted_credentials_never_grant_capabilities(make_user):
+    class Restricted:
+        restricted = True
+
+    admin = make_user(ROLE_ADMIN)
+    assert decide(HasCapability("campaigns.create"), admin) is True
+    assert decide(HasCapability("campaigns.create"), admin, auth=Restricted()) is False
+
+
+def test_a_plain_django_request_without_auth_information_is_denied(make_user):
+    request = APIRequestFactory().get("/x")  # not a DRF Request: no .auth attribute
+    request.user = make_user(ROLE_ADMIN)
+    assert HasCapability("campaigns.create")().has_permission(request, APIView()) is False

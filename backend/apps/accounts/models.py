@@ -149,3 +149,43 @@ class User(AbstractUser):
     def refresh_from_db(self, *args: Any, **kwargs: Any) -> None:
         self._capabilities_cache = None
         super().refresh_from_db(*args, **kwargs)
+
+    @property
+    def has_active_mfa_device(self) -> bool:
+        return self.mfa_devices.filter(confirmed_at__isnull=False, disabled_at__isnull=True).exists()
+
+    @property
+    def must_enroll_mfa(self) -> bool:
+        """The user's roles require MFA and no confirmed device exists yet. Computed, never stored."""
+        return self.requires_mfa and not self.has_active_mfa_device
+
+
+class MfaDevice(models.Model):
+    """A TOTP authenticator. The seed is stored only as AES-GCM ciphertext (``FieldCipher``), bound to
+    this row, so a database copy yields no usable seeds without the encryption key."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="mfa_devices")
+    secret_encrypted = models.TextField()
+    confirmed_at = models.DateTimeField(null=True, blank=True)
+    # Highest TOTP time step already accepted: a code for a step <= this is a replay.
+    last_used_step = models.PositiveBigIntegerField(default=0, db_default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    disabled_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user"],
+                condition=Q(confirmed_at__isnull=False, disabled_at__isnull=True),
+                name="mfadevice_one_active_per_user",
+            ),
+            models.UniqueConstraint(
+                fields=["user"],
+                condition=Q(confirmed_at__isnull=True, disabled_at__isnull=True),
+                name="mfadevice_one_pending_per_user",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"MfaDevice {self.pk}"

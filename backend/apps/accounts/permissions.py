@@ -33,6 +33,8 @@ class CapabilityPermission(BasePermission):
             principal = request.user
             if principal is None or not getattr(principal, "is_authenticated", False):
                 return False
+            if getattr(request.auth, "restricted", False):
+                return False  # e.g. the MFA enrolment credential: good for its own endpoints only
             check = getattr(principal, "has_capability", None)
             if check is None:
                 return False
@@ -60,6 +62,15 @@ def HasCapability(*names: str) -> type[CapabilityPermission]:  # noqa: N802 - us
     if unknown:
         raise ValueError(f"Unknown capability: {unknown}")
     return _build(tuple(dict.fromkeys(names)))
+
+
+class IsEnrollmentCredential(BasePermission):
+    """Only the restricted MFA enrolment credential passes: for the two enrolment endpoints."""
+
+    def has_permission(self, request: Request, view: APIView) -> bool:
+        from apps.accounts.authentication import EnrollmentCredential
+
+        return isinstance(request.auth, EnrollmentCredential)
 
 
 class ObjectScoped(BasePermission):

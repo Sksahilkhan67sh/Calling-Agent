@@ -20,3 +20,8 @@ _Populated by the task that owns it (see PROGRESS.md)._
 - **OQ2-09 Client IP in audit events** is empty until P2-10 binds the trusted-proxy resolver; CLI events never have one.
 - **OQ2-10 Capability-grant audit.** Per-user grants of `recordings.listen` (OQ2-06) must produce an audit event when that workflow exists.
 - **OQ2-11 Load-sensitive Phase 1 tests.** `test_health.py` (readiness must return in < 1.5 s despite a 3 s hang) and `test_celery_integration.py` (30 s worker start-up wait) use wall-clock bounds. They passed under CPU load in P2-06 but may flake on a slow CI runner; if they do, convert to CPU time or widen relative to the configured timeout.
+
+## From P2-07
+- **OQ2-12 Recovery codes / multiple devices / voluntary enrolment.** Loss of the authenticator needs an operator running `mfa_reset` (audited). Recovery codes would need one-time, hashed, single-use storage and their own brute-force limits; a second device needs the one-active constraint relaxed. Users whose roles do not require MFA cannot enrol in Phase 2 (the enrolment endpoints accept only the restricted credential).
+- **OQ2-13 HTTP-level restriction retest.** Default DRF authentication is still empty until P2-08, so "the enrolment credential is rejected by ordinary endpoints" is trivially true today. P2-09/P2-15 must repeat it against the real cookie-JWT default authenticators.
+- **OQ2-14 TOTP clock source.** Verification uses the application server clock (`time.time()`); NTP on all app hosts is an operational requirement (a +/- 30 s window tolerates small drift only).

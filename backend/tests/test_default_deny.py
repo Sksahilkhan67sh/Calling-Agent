@@ -23,6 +23,7 @@ REVIEWED_EXCEPTIONS = {
     "HealthReady": "Readiness probe; reports only ok/degraded, no internals.",
     "SpectacularAPIView": "OpenAPI schema; mounted only when ENABLE_API_DOCS (dev), never in prod.",
     "SpectacularSwaggerView": "API docs UI; mounted only when ENABLE_API_DOCS (dev), never in prod.",
+    "EnrollProbe": "Test-only stand-in for the MFA enrolment endpoints (restricted credential only).",
     "SpectacularRedocView": "API docs UI; mounted only when ENABLE_API_DOCS (dev), never in prod.",
 }
 ANONYMOUS_ALLOWLIST = set(REVIEWED_EXCEPTIONS)
@@ -69,7 +70,7 @@ def test_every_view_declares_permissions(docs):
 def test_testapp_views_all_declare_capabilities():
     from tests.testapp.urls import unscoped_patterns, urlpatterns
 
-    assert len(list(_views(urlpatterns))) == 6
+    assert len(list(_views(urlpatterns))) == 8
     assert find_violations([*urlpatterns, *unscoped_patterns]) == []
 
 
