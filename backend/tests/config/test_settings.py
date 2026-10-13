@@ -42,7 +42,9 @@ def test_production_posture(module, prod_env, monkeypatch):
     assert s.CORS_ALLOWED_ORIGINS == ["https://dashboard.calls.test"] and s.CORS_ALLOW_ALL_ORIGINS is False
     assert s.DATABASES["default"]["ATOMIC_REQUESTS"] is False
     assert s.REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] == ["apps.core.permissions.DefaultDeny"]
-    assert s.REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"] == []
+    assert s.REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"] == [
+        "apps.accounts.authentication.CookieJWTAuthentication"
+    ]
     assert s.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["api-user"] == "600/min"
     assert s.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["webhook"] == "1200/min"
     assert s.REST_FRAMEWORK["DEFAULT_RENDERER_CLASSES"] == ["rest_framework.renderers.JSONRenderer"]

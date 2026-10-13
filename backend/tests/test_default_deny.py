@@ -70,7 +70,7 @@ def test_every_view_declares_permissions(docs):
 def test_testapp_views_all_declare_capabilities():
     from tests.testapp.urls import unscoped_patterns, urlpatterns
 
-    assert len(list(_views(urlpatterns))) == 8
+    assert len(list(_views(urlpatterns))) == 9
     assert find_violations([*urlpatterns, *unscoped_patterns]) == []
 
 
@@ -120,8 +120,15 @@ def test_default_permission_is_deny_and_denies(client):
         def get(self, request):  # pragma: no cover
             ...
 
-    response = Plain.as_view()(APIRequestFactory().get("/x"))
-    assert response.status_code == 403
+    from rest_framework.test import force_authenticate
+
+    from apps.accounts.models import User
+
+    anonymous = Plain.as_view()(APIRequestFactory().get("/x"))
+    assert anonymous.status_code == 401  # nobody is let in; with an authenticator configured this is a 401
+    request = APIRequestFactory().get("/x")
+    force_authenticate(request, user=User(email="caller@example.com"))
+    assert Plain.as_view()(request).status_code == 403  # authenticated but not permitted: the default deny
 
 
 def test_health_views_are_in_allowlist():

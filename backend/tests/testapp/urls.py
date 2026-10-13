@@ -9,6 +9,7 @@ urlpatterns = [
     path("things/<uuid:pk>/status/", views.ThingStatus.as_view()),
     path("things/<uuid:pk>/recording/", views.ThingRecording.as_view()),
     path("retry-policy/", views.RetryPolicyWrite.as_view()),
+    path("whoami/", views.WhoAmI.as_view()),
     path("enroll-probe/", views.EnrollProbe.as_view()),
     path("enroll-capability-probe/", views.EnrollCapabilityProbe.as_view()),
 ]

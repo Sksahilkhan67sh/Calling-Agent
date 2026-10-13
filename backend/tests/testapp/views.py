@@ -6,6 +6,7 @@ from rest_framework.views import APIView
 from apps.accounts.authentication import EnrollmentTokenAuthentication
 from apps.accounts.permissions import HasCapability, IsEnrollmentCredential, ObjectScoped
 from apps.accounts.querysets import ScopedViewMixin
+from apps.core.logging import get_context
 from tests.testapp.models import ScopedThing
 
 
@@ -83,3 +84,20 @@ class EnrollCapabilityProbe(APIView):
 
     def get(self, request):
         return Response({"leaked": True})
+
+
+class WhoAmI(APIView):
+    """Reports how the request was authenticated and which log context was bound (cookie-auth tests)."""
+
+    permission_classes = [HasCapability("campaigns.view_own", "campaigns.view_all")]
+
+    def _answer(self, request):
+        return Response(
+            {
+                "user": str(request.user.pk),
+                "via": request.auth.via,
+                "user_id_in_log_context": get_context().get("user_id"),
+            }
+        )
+
+    get = post = _answer

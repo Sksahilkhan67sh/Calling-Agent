@@ -1,7 +1,7 @@
 import pytest
 from rest_framework.exceptions import NotFound
 from rest_framework.permissions import AllowAny
-from rest_framework.test import APIRequestFactory
+from rest_framework.test import APIRequestFactory, force_authenticate
 from rest_framework.views import APIView
 
 from apps.core.exceptions import safe_exception_handler
@@ -28,6 +28,12 @@ def test_drf_errors_keep_their_response():
     assert response is not None and response.status_code == 404
 
 
+def _authenticated_user():
+    from apps.accounts.models import User
+
+    return User(email="caller@example.com")  # unsaved: authentication is forced, no database is touched
+
+
 @pytest.mark.parametrize("debug", [True, False])
 def test_default_deny_message_only_in_debug(debug, settings):
     settings.DEBUG = debug
@@ -35,6 +41,19 @@ def test_default_deny_message_only_in_debug(debug, settings):
     class Undeclared(APIView):
         throttle_classes: list = []
 
-    response = Undeclared.as_view()(APIRequestFactory().get("/"))
+    request = APIRequestFactory().get("/")
+    force_authenticate(request, user=_authenticated_user())  # the 403 path: an authenticated caller
+    response = Undeclared.as_view()(request)
     assert response.status_code == 403
     assert ("declares no permission_classes" in str(response.data["detail"])) is debug
+
+
+@pytest.mark.parametrize("debug", [True, False])
+def test_default_deny_for_anonymous_callers_is_401_and_never_explains_itself(debug, settings):
+    settings.DEBUG = debug
+
+    class Undeclared(APIView):
+        throttle_classes: list = []
+
+    response = Undeclared.as_view()(APIRequestFactory().get("/"))
+    assert response.status_code == 401 and "declares no permission_classes" not in str(response.data)

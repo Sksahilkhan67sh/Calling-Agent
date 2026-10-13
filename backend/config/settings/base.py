@@ -68,6 +68,7 @@ INSTALLED_APPS = [
     "apps.core",
     "apps.accounts",
     "apps.audit",
+    "rest_framework_simplejwt.token_blacklist",
 ]
 AUTH_USER_MODEL = "accounts.User"
 # Only M2M through tables use this; every model declares a UUID primary key.
@@ -122,7 +123,7 @@ LOGIN_RATE_LIMIT_PER_MINUTE = as_int("LOGIN_RATE_LIMIT_PER_MINUTE", 5, minimum=1
 
 REST_FRAMEWORK: dict[str, Any] = {
     "DEFAULT_PERMISSION_CLASSES": ["apps.core.permissions.DefaultDeny"],
-    "DEFAULT_AUTHENTICATION_CLASSES": [],  # Phase 2 adds authentication
+    "DEFAULT_AUTHENTICATION_CLASSES": ["apps.accounts.authentication.CookieJWTAuthentication"],
     "DEFAULT_THROTTLE_CLASSES": ["apps.core.throttles.ApiUserThrottle"],
     "DEFAULT_THROTTLE_RATES": {
         "login": f"{LOGIN_RATE_LIMIT_PER_MINUTE}/min",

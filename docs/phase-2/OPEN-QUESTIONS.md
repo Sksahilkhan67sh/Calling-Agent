@@ -25,3 +25,9 @@ _Populated by the task that owns it (see PROGRESS.md)._
 - **OQ2-12 Recovery codes / multiple devices / voluntary enrolment.** Loss of the authenticator needs an operator running `mfa_reset` (audited). Recovery codes would need one-time, hashed, single-use storage and their own brute-force limits; a second device needs the one-active constraint relaxed. Users whose roles do not require MFA cannot enrol in Phase 2 (the enrolment endpoints accept only the restricted credential).
 - **OQ2-13 HTTP-level restriction retest.** Default DRF authentication is still empty until P2-08, so "the enrolment credential is rejected by ordinary endpoints" is trivially true today. P2-09/P2-15 must repeat it against the real cookie-JWT default authenticators.
 - **OQ2-14 TOTP clock source.** Verification uses the application server clock (`time.time()`); NTP on all app hosts is an operational requirement (a +/- 30 s window tolerates small drift only).
+
+## From P2-08
+- **OQ2-15 Parallel refresh = false theft signal.** The frontend must serialise refresh calls (single-flight) and must not retry a refresh whose response was lost. Decide whether a short grace window for the immediately previous token is acceptable (it weakens theft detection).
+- **OQ2-16 Access token outlives logout by up to 15 min.** Closing it needs a per-session id claim and a denylist (Redis) checked per request; costs one extra lookup per request. Decide with the product's risk appetite.
+- **OQ2-17 Per-request database cost.** Every authenticated request loads the user (epoch, `is_active`) and capabilities once. If this becomes a bottleneck, cache `(user_id, auth_epoch, is_active)` in Redis with epoch-bump invalidation; not needed at the expected volume.
+- **OQ2-18 Beat schedule for `flushexpiredtokens`** to be added with the Phase 4 worker.
