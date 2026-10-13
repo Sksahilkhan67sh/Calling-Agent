@@ -6,9 +6,9 @@
 | P2-01 | Dependencies (simplejwt, axes, pyotp) | DONE | EVIDENCE P2-01 | 241630d | deps: P2-00 |
 | P2-02 | Settings and environment | DONE | EVIDENCE P2-02 | c4a65ef | deps: P2-01 |
 | P2-03 | User model extension | DONE | EVIDENCE P2-03 | 2f10629 | deps: P2-02 |
-| P2-04 | Roles, capabilities, RBAC matrix | PARTIAL | EVIDENCE P2-04 | 21b8d66 | deps: P2-03 |
+| P2-04 | Roles, capabilities, RBAC matrix | DONE | EVIDENCE P2-04, P2-06 | 21b8d66 | deps: P2-03 |
 | P2-05 | Permission classes and object scoping | DONE | EVIDENCE P2-05 | dce4947 | deps: P2-04 |
-| P2-06 | audit app (append-only) | TODO | - | - | deps: P2-03 |
+| P2-06 | audit app (append-only) | DONE | EVIDENCE P2-06 | TBD | deps: P2-03 |
 | P2-07 | MFA (TOTP) with encrypted seeds | TODO | - | - | deps: P2-03, P2-06 |
 | P2-08 | Cookie JWT authentication | TODO | - | - | deps: P2-03, P2-05 |
 | P2-09 | Auth endpoints | TODO | - | - | deps: P2-07, P2-08 |
@@ -42,3 +42,4 @@ Not available: Docker (compose stack), GitHub-hosted CI, network for pre-commit 
 - P2-03: User extended (epoch, password_changed_at, full_name), automatic revocation on password change/deactivation, additive reversible migration. Next: P2-04 roles, capabilities, RBAC matrix.
 - P2-04: capability registry (23), role matrix, `sync_roles` (idempotent, drift-removing), generated RBAC-MATRIX.md. PARTIAL only because the `rbac.sync` audit event needs the audit app (P2-06). Next: P2-05 permission classes and object-level scoping.
 - P2-05: HasCapability (any-of, fail-closed, no superuser bypass), ScopedQuerySet/ScopedViewMixin/ObjectScoped, test-only app, default-deny extended. Next: P2-06 audit app (append-only at three layers); it also closes the `rbac.sync` audit event left open by P2-04.
+- P2-06: audit app with model, trigger and (pending P2-17) privilege layers; audit.record/audited fail closed; redaction; `rbac.sync` event wired, which completes P2-04 (now DONE). Next: P2-07 MFA (TOTP) with encrypted seeds.

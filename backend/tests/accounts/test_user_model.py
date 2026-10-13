@@ -150,7 +150,8 @@ def test_requires_mfa_honours_configured_roles(user, settings):
     assert user.requires_mfa is True
 
 
-@pytest.mark.django_db(transaction=True)
+# Runs inside the ordinary rolled-back test transaction (PostgreSQL DDL is transactional). A transactional
+# test would end with Django's flush, a TRUNCATE of every table, which the audit_event trigger refuses.
 def test_migration_0002_applies_over_phase1_data_and_reverses():
     target = ("accounts", "0002_user_epoch_and_profile")
     previous = ("accounts", "0001_initial")

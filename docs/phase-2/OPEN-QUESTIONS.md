@@ -14,3 +14,8 @@ _Populated by the task that owns it (see PROGRESS.md)._
 
 ## From P2-05
 - **OQ2-07 Scoping lint coverage.** A view that builds its queryset only in `get_queryset()` is not detected by the lint (see DECISIONS P2-05). Phase 3 should either keep the `queryset =` idiom or extend the lint (e.g. require `scoped_model` on every view with a serializer over a scoped model).
+
+## From P2-06
+- **OQ2-08 Audit retention, export and tamper-evidence.** Who deletes old events, after how long, and how (privileged role that detaches the trigger)? Export to external immutable storage (S3 Object Lock / SIEM)? Hash-chaining of rows? Monthly partitioning once the table is large.
+- **OQ2-09 Client IP in audit events** is empty until P2-10 binds the trusted-proxy resolver; CLI events never have one.
+- **OQ2-10 Capability-grant audit.** Per-user grants of `recordings.listen` (OQ2-06) must produce an audit event when that workflow exists.

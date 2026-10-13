@@ -56,3 +56,18 @@
 - Process note: after mutation 3 the first full run reported 1 failure although the source matched its backup byte for byte. Cause (inferred, not proven): the mutation changed `False` to `True` (same file size) and the restore happened within the same second, so Python reused the stale `.pyc`. After deleting `__pycache__`, the suite passed 3 times in a row (430 passed). Future mutation checks clear bytecode caches first.
 - The log record from the fail-closed test shows the Phase 1 redaction at work (`password=[REDACTED]` in the logged exception).
 - `ruff`, `ruff format --check`, `mypy apps config scripts`: clean.
+
+## P2-06
+- `pytest -q --create-db` (real PostgreSQL + Redis): 544 passed; coverage 100 % (1147 statements; `apps/core`, `apps/accounts`, `apps/audit`, `config`). New tests: `tests/audit/` model layer (12), trigger layer (8), service (18), redaction (76, of which 69 are parametrized key x field cases).
+- Trigger tests on real PostgreSQL 16: raw `UPDATE`, raw `DELETE`, `TRUNCATE` (also `TRUNCATE audit_event, accounts_user CASCADE`) each raise `append-only`; a blocked `UPDATE` of all rows changes nothing; raw `INSERT` still works; `pg_trigger` shows both triggers `tgenabled = 'A'`; dropping the trigger inside a rolled-back transaction lets the same `UPDATE` through (causality proof); migration `0002` reverses (no triggers, no function) and re-applies.
+- Rollback on audit failure: `test_failed_audit_rolls_the_change_back` (refused audit write), `test_database_failure_during_the_audit_write_rolls_the_change_back` (DB error), `test_sync_roles_audit_failure_rolls_the_sync_back`.
+- A genuine bug found by the redaction tests before it could ship: the Phase 1 rules did not mask `key_hash`; `key` and `key_hash` were added to the audit sensitive-key set.
+- Mutation spot-checks (protection removed -> named tests fail; bytecode caches cleared; each restored and the full suite re-run: 544 passed):
+  1. trigger no longer fires on UPDATE (DELETE only) -> `test_raw_update_is_blocked_by_the_trigger`, `test_a_blocked_update_of_every_row_changes_nothing` FAILED (only trigger tests; model tests unaffected).
+  2. `record()` no longer requires a transaction -> `test_record_outside_a_transaction_is_refused` FAILED.
+  3. audit-specific sensitive keys not passed to the redactor -> 28 redaction cases FAILED (`otp`, `code`, `totp`, `seed`, `key_hash`, ...).
+  4. model `save()` guard removed -> `test_saving_an_existing_event_is_refused`, `test_manager_level_shortcuts_are_refused_too` FAILED (only model tests).
+  A first attempt at (1) made the trigger fire on INSERT, which broke every test for the wrong reason; it was discarded and redone as above.
+- The P2-03 migration test no longer uses `transaction=True` (flush would `TRUNCATE audit_event`; the trigger correctly refused it, observed in the failing run).
+- `ruff`, `ruff format --check`, `mypy apps config scripts` (strict on `audit`): clean; `makemigrations --check`: no changes.
+- Not verified here: layer 3 (privileges), P2-17.

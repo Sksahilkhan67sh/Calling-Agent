@@ -18,4 +18,4 @@ Source: `Testing/Test-Cases.xlsx` rows matching auth/MFA/lockout/RBAC/audit/secu
 | TC-SEC.03 | Full role x endpoint matrix | P2-04 | `test_roles_matrix.py::test_every_role_by_capability_cell` (role x capability, done); per-endpoint rows extended in Phase 3+ |
 | TC-SEC.04 | Rate limiting thresholds enforced | P2-10 | throttle tests; load-derived values stay OQ-01 |
 
-Audit has no dedicated TC row; covered by Phase 2 tests in P2-06 (append-only at three layers, rollback on audit failure) per Security-Architecture §9.
+Audit has no dedicated TC row; covered by `tests/audit/` (model layer, trigger layer on real PostgreSQL, rollback on audit failure, redaction) per Security-Architecture §9. Privilege layer: P2-17.

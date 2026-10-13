@@ -67,6 +67,7 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "apps.core",
     "apps.accounts",
+    "apps.audit",
 ]
 AUTH_USER_MODEL = "accounts.User"
 # Only M2M through tables use this; every model declares a UUID primary key.

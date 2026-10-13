@@ -12,6 +12,8 @@ from django.db import transaction
 
 from apps.accounts.models import User
 from apps.accounts.roles import ALL_ROLES, ROLE_CAPABILITIES
+from apps.audit import actions
+from apps.audit.service import Actor, record
 
 
 @dataclass
@@ -29,11 +31,12 @@ def _label(permission: Permission) -> str:
     return f"{permission.content_type.app_label}.{permission.codename}"
 
 
-def sync_roles() -> SyncResult:
+def sync_roles(actor: Actor | None = None) -> SyncResult:
     """Make the Groups and their permissions match ``ROLE_CAPABILITIES`` exactly. Idempotent.
 
     Anything a role holds that the matrix does not grant (for example a permission added by hand) is
-    removed: the code registry, not the database, is the source of truth.
+    removed: the code registry, not the database, is the source of truth. A run that changes anything
+    writes one ``rbac.sync`` audit event in the same transaction (changes and event stand or fall together).
     """
     create_permissions(apps.get_app_config("accounts"), verbosity=0)
     result = SyncResult()
@@ -58,4 +61,15 @@ def sync_roles() -> SyncResult:
             if to_remove:
                 group.permissions.remove(*to_remove)
                 result.permissions_removed[role] = sorted(_label(p) for p in to_remove)
+        if result.changed:
+            record(
+                action=actions.RBAC_SYNC,
+                actor=actor or Actor.system("sync_roles"),
+                object_type="role_matrix",
+                after={
+                    "groups_created": result.groups_created,
+                    "permissions_added": result.permissions_added,
+                    "permissions_removed": result.permissions_removed,
+                },
+            )
     return result
