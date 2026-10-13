@@ -48,6 +48,7 @@ MAX_CONTEXT_VALUE_LENGTH = 128
 CONTEXT_FIELDS: tuple[str, ...] = (
     "request_id",
     "trace_id",
+    "user_id",  # the authenticated principal's id, never an email or token
     "call_id",
     "attempt_id",
     "contact_id",

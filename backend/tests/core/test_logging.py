@@ -171,6 +171,15 @@ def test_context_binding_and_restore(log_capture):
     assert first["timestamp"].endswith("+00:00")
 
 
+def test_user_id_is_a_context_field_and_appears_in_log_lines(log_capture):
+    log = logging.getLogger("ctx")
+    with lg.context(request_id="req-12345678", user_id="3f2c0a54-0000-4000-8000-000000000001"):
+        log.info("inside")
+    line = json.loads(log_capture.getvalue().strip())
+    assert line["user_id"] == "3f2c0a54-0000-4000-8000-000000000001"
+    assert "user_id" not in lg.get_context()
+
+
 def test_bind_rejects_unknown_and_skips_none_and_truncates():
     with pytest.raises(ValueError):
         lg.bind_context(password="x")

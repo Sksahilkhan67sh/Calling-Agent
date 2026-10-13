@@ -101,3 +101,6 @@ Sources: Security-Architecture §3 and §9, Backend-Design §4.2, API-Specificat
   - All token failures raise one uniform error (`401`, `WWW-Authenticate: MfaEnroll`, identical body for tampered, expired, revoked and garbage tokens).
 - **`must_enroll_mfa`** is computed (`requires_mfa and not has_active_mfa_device`), never stored.
 - **Not in Phase 2:** SMS, email OTP, recovery codes, multiple devices (OQ2-12).
+
+## Phase 1 change in P2-08: `user_id` log-context field (separate commit)
+`apps/core/logging.py` `CONTEXT_FIELDS` gains `user_id` so the authenticated principal's id (never email or token) can be bound for the request and appears in every log line. Unknown field names are still rejected; a test covers appearance and cleanup.
