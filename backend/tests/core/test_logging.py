@@ -143,9 +143,11 @@ def test_regex_performance_no_catastrophic_backtracking():
         "http://" + "a" * 100_000,
     ]
     for text in hostile:
-        start = time.perf_counter()
+        # CPU time, not wall clock: catastrophic backtracking burns CPU for seconds to minutes, whereas a
+        # busy machine only delays the wall clock (this assertion flaked under CPU contention).
+        start = time.process_time()
         lg.redact_text(text)
-        assert time.perf_counter() - start < 2.0, text[:30]
+        assert time.process_time() - start < 2.0, text[:30]
 
 
 def test_filter_handles_bad_format_args():

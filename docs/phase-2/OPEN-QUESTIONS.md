@@ -19,3 +19,4 @@ _Populated by the task that owns it (see PROGRESS.md)._
 - **OQ2-08 Audit retention, export and tamper-evidence.** Who deletes old events, after how long, and how (privileged role that detaches the trigger)? Export to external immutable storage (S3 Object Lock / SIEM)? Hash-chaining of rows? Monthly partitioning once the table is large.
 - **OQ2-09 Client IP in audit events** is empty until P2-10 binds the trusted-proxy resolver; CLI events never have one.
 - **OQ2-10 Capability-grant audit.** Per-user grants of `recordings.listen` (OQ2-06) must produce an audit event when that workflow exists.
+- **OQ2-11 Load-sensitive Phase 1 tests.** `test_health.py` (readiness must return in < 1.5 s despite a 3 s hang) and `test_celery_integration.py` (30 s worker start-up wait) use wall-clock bounds. They passed under CPU load in P2-06 but may flake on a slow CI runner; if they do, convert to CPU time or widen relative to the configured timeout.

@@ -71,3 +71,9 @@
 - The P2-03 migration test no longer uses `transaction=True` (flush would `TRUNCATE audit_event`; the trigger correctly refused it, observed in the failing run).
 - `ruff`, `ruff format --check`, `mypy apps config scripts` (strict on `audit`): clean; `makemigrations --check`: no changes.
 - Not verified here: layer 3 (privileges), P2-17.
+
+## Phase 1 fix: regex performance guard (found during P2-06)
+- Symptom: full suite occasionally "1 failed, 543 passed" (3 of ~14 runs), not reproducible on idle runs (8 of 8 passed).
+- Reproduction: 4 busy-loop processes + `pytest tests/core/test_logging.py tests/core/test_health.py tests/test_celery_integration.py` -> `test_regex_performance_no_catastrophic_backtracking` FAILED once in 3 loaded runs; idle it takes ~1 s total.
+- Fix: `time.process_time()` instead of `time.perf_counter()` (same 2 s bound). After the fix: 4 of 4 loaded runs passed; a catastrophic pattern still exceeds the bound (2.4 s CPU).
+- Honest limit: the earlier failures were observed without a captured traceback (my first greps filtered the output), so the link between those runs and this test is inferred from the reproduction, not proven for each occurrence.
