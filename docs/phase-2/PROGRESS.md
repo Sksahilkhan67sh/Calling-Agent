@@ -11,7 +11,7 @@
 | P2-06 | audit app (append-only) | DONE | EVIDENCE P2-06 | f023985 | deps: P2-03 |
 | P2-07 | MFA (TOTP) with encrypted seeds | DONE | EVIDENCE P2-07 | bb05736 | deps: P2-03, P2-06 |
 | P2-08 | Cookie JWT authentication | DONE | EVIDENCE P2-08 | b488051 | deps: P2-03, P2-05 |
-| P2-09 | Auth endpoints | DONE | EVIDENCE P2-09 | TBD | deps: P2-07, P2-08 |
+| P2-09 | Auth endpoints | DONE | EVIDENCE P2-09 | aa2bae0 | deps: P2-07, P2-08 |
 | P2-10 | Lockout, client IP, throttling | TODO | - | - | deps: P2-09 |
 | P2-11 | Session revocation semantics | TODO | - | - | deps: P2-09 |
 | P2-12 | Machine clients (api_client) | TODO | - | - | deps: P2-05, P2-06 |
