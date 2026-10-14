@@ -36,7 +36,11 @@ django_settings_module = "config.settings.test"
 DJANGO_SETTINGS_MODULE = "config.settings.test"
 testpaths = ["tests"]
 addopts = "-ra --strict-markers"
-markers = ["integration: needs real PostgreSQL/Redis (and optionally a Celery worker)"]
+markers = [
+    "integration: needs real PostgreSQL/Redis (and optionally a Celery worker)",
+    "security: attack-oriented tests of authentication, authorisation and token handling",
+    "timing: statistical timing comparison (many samples, medians, generous bound)",
+]
 
 [tool.coverage.run]
 source = ["apps/core", "apps/accounts", "apps/audit", "config"]

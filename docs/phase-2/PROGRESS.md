@@ -11,7 +11,7 @@
 | P2-06 | audit app (append-only) | DONE | EVIDENCE P2-06 | f023985 | deps: P2-03 |
 | P2-07 | MFA (TOTP) with encrypted seeds | DONE | EVIDENCE P2-07 | bb05736 | deps: P2-03, P2-06 |
 | P2-08 | Cookie JWT authentication | DONE | EVIDENCE P2-08 | b488051 | deps: P2-03, P2-05 |
-| P2-09 | Auth endpoints | TODO | - | - | deps: P2-07, P2-08 |
+| P2-09 | Auth endpoints | DONE | EVIDENCE P2-09 | TBD | deps: P2-07, P2-08 |
 | P2-10 | Lockout, client IP, throttling | TODO | - | - | deps: P2-09 |
 | P2-11 | Session revocation semantics | TODO | - | - | deps: P2-09 |
 | P2-12 | Machine clients (api_client) | TODO | - | - | deps: P2-05, P2-06 |
@@ -45,3 +45,4 @@ Not available: Docker (compose stack), GitHub-hosted CI, network for pre-commit 
 - P2-06: audit app with model, trigger and (pending P2-17) privilege layers; audit.record/audited fail closed; redaction; `rbac.sync` event wired, which completes P2-04 (now DONE). Next: P2-07 MFA (TOTP) with encrypted seeds.
 - P2-07: TOTP service (RFC 6238 vectors, +/-1 window, constant-time, replay-protected), seeds AES-GCM-encrypted and bound to their row, enrolment/confirm/reset, restricted `MfaEnroll` credential refused by HasCapability. HTTP-level restriction against real default authenticators is retested in P2-09/P2-15 (OQ2-13). Next: P2-08 cookie JWT authentication.
 - P2-08: token layer (HS256, required typed claims, epoch, digest-only refresh storage, rotation with reuse detection), cookie helpers, CookieJWTAuthentication with CSRF; default authenticator switched on. Found and fixed a refresh-breaking `FOR UPDATE` bug. Next: P2-09 auth endpoints (contract: /auth/token, /auth/token/refresh, /auth/logout).
+- P2-09: login/refresh/logout + csrf + MFA enrolment endpoints per contract, uniform failures with equalised work, CSRF-first refresh, fail-closed audit, bounded JSON-only parsing. Contract-script check and OpenAPI annotations are P2-14. Layout additions: `login.py`, `parsers.py`, `serializers.py`, `urls.py`, `views.py` (views/urls/serializers were in the layout; `login.py` and `parsers.py` are additions). Next: P2-10 lockout (axes), trusted-proxy client IP, throttles.

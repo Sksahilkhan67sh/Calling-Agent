@@ -23,6 +23,12 @@ REVIEWED_EXCEPTIONS = {
     "HealthReady": "Readiness probe; reports only ok/degraded, no internals.",
     "SpectacularAPIView": "OpenAPI schema; mounted only when ENABLE_API_DOCS (dev), never in prod.",
     "SpectacularSwaggerView": "API docs UI; mounted only when ENABLE_API_DOCS (dev), never in prod.",
+    "LoginView": "POST /auth/token is the credential check: anonymous by contract, throttled.",
+    "RefreshView": "POST /auth/token/refresh is authenticated by the refresh cookie; CSRF-checked.",
+    "CsrfView": "GET /auth/csrf only issues a CSRF cookie; it carries no data and needs no identity.",
+    "LogoutView": "POST /auth/logout is open to any authenticated caller and acts only on its own session.",
+    "MfaEnrollView": "POST /auth/mfa/enroll accepts only the restricted MFA enrolment credential.",
+    "MfaConfirmView": "POST /auth/mfa/confirm accepts only the restricted MFA enrolment credential.",
     "EnrollProbe": "Test-only stand-in for the MFA enrolment endpoints (restricted credential only).",
     "SpectacularRedocView": "API docs UI; mounted only when ENABLE_API_DOCS (dev), never in prod.",
 }
@@ -63,7 +69,7 @@ def find_violations(patterns) -> list[str]:
 @pytest.mark.parametrize("docs", [False, True])
 def test_every_view_declares_permissions(docs):
     patterns = build_urlpatterns(enable_api_docs=docs)
-    assert len(list(_views(patterns))) == (5 if docs else 2)
+    assert len(list(_views(patterns))) == (11 if docs else 8)  # probes + 6 auth views (+ 3 docs views)
     assert find_violations(patterns) == []
 
 

@@ -168,11 +168,15 @@ def _handle_reuse(user: User, jti: str) -> None:
     )
 
 
-def revoke_refresh(raw: str) -> bool:
-    """Blacklist a refresh token (logout). Idempotent; never reveals whether the token was valid."""
+def revoke_refresh(raw: str, *, user_id: uuid.UUID | None = None) -> bool:
+    """Blacklist a refresh token (logout). Idempotent; never reveals whether the token was valid.
+
+    With ``user_id``, a token that belongs to someone else is left alone."""
     try:
         claims = _decode(raw, REFRESH)
     except InvalidToken:
+        return False
+    if user_id is not None and claims.user_id != user_id:
         return False
     with transaction.atomic():
         outstanding = OutstandingToken.objects.select_for_update().filter(jti=claims.jti).first()
