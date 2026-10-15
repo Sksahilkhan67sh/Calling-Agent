@@ -46,3 +46,23 @@ class RefreshBodySerializer(StrictSerializer):
     """Non-browser clients (``AUTH_TOKENS_IN_BODY``) may send the refresh token in the body."""
 
     refresh = StrictCharField(max_length=4096, required=False, trim_whitespace=False)
+
+
+class ErrorSerializer(serializers.Serializer[Any]):
+    """The contract's ``Error`` schema."""
+
+    code = serializers.CharField()
+    message = serializers.CharField()
+
+
+class AuthenticatedSerializer(serializers.Serializer[Any]):
+    authenticated = serializers.BooleanField()
+    mfa_enrollment_required = serializers.BooleanField(required=False)
+    mfa_enrollment_token = serializers.CharField(required=False)
+    expires_in = serializers.IntegerField(required=False)
+
+
+class MfaEnrollResponseSerializer(serializers.Serializer[Any]):
+    secret = serializers.CharField()
+    provisioning_uri = serializers.CharField()
+    issuer = serializers.CharField()

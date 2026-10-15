@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from django.conf import settings
+from drf_spectacular.extensions import OpenApiAuthenticationExtension
 from rest_framework.authentication import BaseAuthentication, SessionAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.request import Request
@@ -100,3 +101,28 @@ class EnrollmentTokenAuthentication(BaseAuthentication):
         except EnrollmentTokenInvalid:
             raise AuthenticationFailed(_UNIFORM) from None  # uniform, no detail
         return user, EnrollmentCredential()
+
+
+class CookieJWTScheme(OpenApiAuthenticationExtension):  # type: ignore[no-untyped-call]
+    """OpenAPI description of the browser session: the access JWT travels in an httpOnly cookie."""
+
+    target_class = "apps.accounts.authentication.CookieJWTAuthentication"
+    name = "cookieAuth"
+
+    def get_security_definition(self, auto_schema):  # type: ignore[no-untyped-def]
+        return {"type": "apiKey", "in": "cookie", "name": settings.AUTH_ACCESS_COOKIE_NAME}
+
+
+class EnrollmentTokenScheme(OpenApiAuthenticationExtension):  # type: ignore[no-untyped-call]
+    """OpenAPI description of the restricted MFA-enrolment credential (header, two endpoints only)."""
+
+    target_class = "apps.accounts.authentication.EnrollmentTokenAuthentication"
+    name = "enrollmentAuth"
+
+    def get_security_definition(self, auto_schema):  # type: ignore[no-untyped-def]
+        return {
+            "type": "apiKey",
+            "in": "header",
+            "name": "Authorization",
+            "description": "Restricted 'MfaEnroll <token>' credential for the two enrolment endpoints only.",
+        }

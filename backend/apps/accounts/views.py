@@ -9,6 +9,7 @@ from typing import Any, cast
 from django.conf import settings
 from django.db import transaction
 from django.middleware.csrf import get_token
+from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.exceptions import (
     APIException,
@@ -33,7 +34,14 @@ from apps.accounts.login import check_credentials
 from apps.accounts.models import User
 from apps.accounts.parsers import BoundedJSONParser, PayloadTooLarge
 from apps.accounts.permissions import IsEnrollmentCredential
-from apps.accounts.serializers import MfaConfirmSerializer, RefreshBodySerializer, TokenRequestSerializer
+from apps.accounts.serializers import (
+    AuthenticatedSerializer,
+    ErrorSerializer,
+    MfaConfirmSerializer,
+    MfaEnrollResponseSerializer,
+    RefreshBodySerializer,
+    TokenRequestSerializer,
+)
 from apps.accounts.tokens import InvalidToken, TokenPair, issue_tokens, revoke_refresh, rotate_tokens
 from apps.audit import actions
 from apps.audit.models import Outcome
@@ -128,6 +136,18 @@ class LoginView(AuthAPIView):
     authentication_classes: list[Any] = []
     permission_classes = [PublicEndpoint]
 
+    @extend_schema(
+        tags=["Auth"],
+        summary="Log in (password + MFA code) and receive tokens",
+        auth=[],
+        request=TokenRequestSerializer,
+        responses={
+            200: OpenApiResponse(AuthenticatedSerializer, description="Authenticated"),
+            400: OpenApiResponse(ErrorSerializer, description="Malformed request"),
+            401: OpenApiResponse(ErrorSerializer, description="Invalid credentials or MFA code"),
+            429: OpenApiResponse(ErrorSerializer, description="Too many attempts"),
+        },
+    )
     def post(self, request: Request) -> Response:
         serializer = TokenRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -181,6 +201,19 @@ class RefreshView(AuthAPIView):
     authentication_classes: list[Any] = []
     permission_classes = [PublicEndpoint]
 
+    @extend_schema(
+        tags=["Auth"],
+        summary="Rotate the refresh token and issue a new access token",
+        auth=[],
+        request=RefreshBodySerializer,
+        responses={
+            200: OpenApiResponse(AuthenticatedSerializer, description="New tokens issued"),
+            401: OpenApiResponse(
+                ErrorSerializer, description="Refresh token missing, expired, rotated or blacklisted"
+            ),
+            429: OpenApiResponse(ErrorSerializer, description="Too many attempts"),
+        },
+    )
     def post(self, request: Request) -> Response:
         body = RefreshBodySerializer(data=request.data if request.data else {})
         body.is_valid(raise_exception=True)
@@ -211,6 +244,15 @@ class LogoutView(AuthAPIView):
     throttle_classes = list(APIView.throttle_classes)  # the default per-user throttle, not the login scope
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        tags=["Auth"],
+        summary="Blacklist the refresh token and clear cookies",
+        request=RefreshBodySerializer,
+        responses={
+            204: OpenApiResponse(description="Logged out"),
+            401: OpenApiResponse(ErrorSerializer, description="Not authenticated"),
+        },
+    )
     def post(self, request: Request) -> Response:
         body = RefreshBodySerializer(data=request.data if request.data else {})
         body.is_valid(raise_exception=True)
@@ -238,6 +280,12 @@ class CsrfView(AuthAPIView):
     permission_classes = [PublicEndpoint]
     throttle_classes = list(APIView.throttle_classes)
 
+    @extend_schema(
+        tags=["Auth"],
+        summary="Ensure the CSRF cookie is set",
+        auth=[],
+        responses={204: OpenApiResponse(description="CSRF cookie set")},
+    )
     def get(self, request: Request) -> Response:
         get_token(request)  # marks the cookie for (re)issue by CsrfViewMiddleware
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -251,6 +299,18 @@ class _EnrolmentView(AuthAPIView):
 class MfaEnrollView(_EnrolmentView):
     """POST /auth/mfa/enroll: returns the secret and provisioning URI once."""
 
+    @extend_schema(
+        tags=["Auth"],
+        summary="Begin MFA enrolment (enrolment credential only)",
+        request=None,
+        responses={
+            200: OpenApiResponse(
+                MfaEnrollResponseSerializer, description="Secret and provisioning URI, shown once"
+            ),
+            401: OpenApiResponse(ErrorSerializer, description="Invalid enrolment credential"),
+            409: OpenApiResponse(ErrorSerializer, description="Enrolment not available"),
+        },
+    )
     def post(self, request: Request) -> Response:
         try:
             enrollment = mfa.begin_enrollment(cast(User, request.user))
@@ -268,6 +328,17 @@ class MfaEnrollView(_EnrolmentView):
 class MfaConfirmView(_EnrolmentView):
     """POST /auth/mfa/confirm: a valid code activates the authenticator and starts the session."""
 
+    @extend_schema(
+        tags=["Auth"],
+        summary="Confirm MFA enrolment with a code and start the session",
+        request=MfaConfirmSerializer,
+        responses={
+            200: OpenApiResponse(AuthenticatedSerializer, description="Authenticated"),
+            400: OpenApiResponse(ErrorSerializer, description="Invalid code"),
+            401: OpenApiResponse(ErrorSerializer, description="Invalid enrolment credential"),
+            409: OpenApiResponse(ErrorSerializer, description="No enrolment in progress"),
+        },
+    )
     def post(self, request: Request) -> Response:
         serializer = MfaConfirmSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
