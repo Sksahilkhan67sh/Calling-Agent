@@ -7,19 +7,25 @@ Built on SimpleJWT's token classes and blacklist tables, but this module owns pa
 - Refresh tokens rotate on every use. Only tokens recorded at issue time are accepted, and the table stores
   a SHA-256 digest, never the token: a read-only copy of the database yields no usable refresh token
   (stock SimpleJWT stores the full string).
+- A session (the chain of rotated refresh tokens) has an absolute lifetime: ``sid`` names it and ``sat`` is
+  when it started. Rotation copies both unchanged, so activity never extends a session past
+  ``JWT_SESSION_ABSOLUTE_MAX_SECONDS``.
 - Presenting an already-rotated or logged-out refresh token is treated as theft: the user's epoch is bumped,
   which revokes every session, and the event is audited and logged.
 """
 
 from __future__ import annotations
 
+import enum
 import hashlib
 import logging
+import time
 import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
 import jwt
+from django.conf import settings
 from django.db import transaction
 from rest_framework_simplejwt.exceptions import TokenBackendError
 from rest_framework_simplejwt.settings import api_settings
@@ -36,6 +42,8 @@ from apps.audit.service import Actor, record
 logger = logging.getLogger(__name__)
 
 EPOCH_CLAIM = "auth_epoch"
+SESSION_ID_CLAIM = "sid"  # stable across rotations
+SESSION_START_CLAIM = "sat"  # epoch seconds of the original login; never changed by rotation
 ROLES_CLAIM = "roles"  # informational for clients; authorisation always reads the database
 ACCESS = "access"
 REFRESH = "refresh"
@@ -45,6 +53,10 @@ _REQUIRED_NUMERIC = ("exp", "iat")
 
 class InvalidToken(Exception):
     """Any problem with a presented token. Deliberately uniform: no reason is ever shown to the caller."""
+
+
+class SessionExpired(InvalidToken):
+    """The session outlived ``JWT_SESSION_ABSOLUTE_MAX_SECONDS``; the caller must log in again."""
 
 
 class RefreshReuseDetected(InvalidToken):
@@ -63,6 +75,15 @@ class Claims:
     epoch: int
     jti: str
     expires_at: float
+    session_id: str
+    session_started_at: int
+
+    @property
+    def session_expires_at(self) -> int:
+        return self.session_started_at + settings.JWT_SESSION_ABSOLUTE_MAX_SECONDS
+
+    def session_expired(self) -> bool:
+        return time.time() > self.session_expires_at
 
 
 def digest(token: str) -> str:
@@ -84,22 +105,39 @@ def _decode(raw: object, token_type: str) -> Claims:
         epoch = payload[EPOCH_CLAIM]
         jti = payload[api_settings.JTI_CLAIM]
         times = [payload[name] for name in _REQUIRED_NUMERIC]
+        session_id, session_start = payload[SESSION_ID_CLAIM], payload[SESSION_START_CLAIM]
         if not isinstance(sub, str) or not isinstance(jti, str) or not jti or len(jti) > 64:
             raise InvalidToken
         if isinstance(epoch, bool) or not isinstance(epoch, int) or epoch < 0:
             raise InvalidToken
         if any(isinstance(t, bool) or not isinstance(t, int | float) for t in times):
             raise InvalidToken
-        return Claims(user_id=uuid.UUID(sub), epoch=epoch, jti=jti, expires_at=float(payload["exp"]))
+        if not isinstance(session_id, str) or not session_id or len(session_id) > 64:
+            raise InvalidToken
+        if isinstance(session_start, bool) or not isinstance(session_start, int) or session_start < 0:
+            raise InvalidToken
+        return Claims(
+            user_id=uuid.UUID(sub),
+            epoch=epoch,
+            jti=jti,
+            expires_at=float(payload["exp"]),
+            session_id=session_id,
+            session_started_at=session_start,
+        )
     except (KeyError, ValueError):
         raise InvalidToken from None
 
 
-def issue_tokens(user: User) -> TokenPair:
-    """A new session: an access/refresh pair whose refresh token is recorded (as a digest) for rotation."""
+def issue_tokens(user: User, *, session: Claims | None = None) -> TokenPair:
+    """An access/refresh pair whose refresh token is recorded (as a digest) for rotation.
+
+    Without ``session`` a new session starts; rotation passes the old claims so ``sid``/``sat`` carry over.
+    """
     if not user.is_active:
         raise InvalidToken
     refresh = RefreshToken()
+    refresh[SESSION_ID_CLAIM] = session.session_id if session else uuid.uuid4().hex
+    refresh[SESSION_START_CLAIM] = session.session_started_at if session else int(time.time())
     refresh[api_settings.USER_ID_CLAIM] = str(user.pk)
     refresh[EPOCH_CLAIM] = user.auth_epoch
     refresh[ROLES_CLAIM] = sorted(user.role_names())
@@ -119,14 +157,17 @@ def read_access(raw: str) -> tuple[User, Claims]:
     """The user an access token authenticates, or ``InvalidToken``: unknown, inactive or stale epoch."""
     claims = _decode(raw, ACCESS)
     user = User.objects.filter(pk=claims.user_id).first()
-    if user is None or not user.is_active or user.auth_epoch != claims.epoch:
-        raise InvalidToken
+    if user is None or not user.is_active or user.auth_epoch != claims.epoch or claims.session_expired():
+        raise InvalidToken  # a session past its absolute cap is dead even if the access token itself is fresh
     return user, claims
 
 
 def rotate_tokens(raw: str) -> TokenPair:
     """Exchange a refresh token for a new pair. The old token is dead the moment this succeeds."""
     claims = _decode(raw, REFRESH)
+    if claims.session_expired():
+        _handle_session_expired(claims)
+        raise SessionExpired
     reused: User | None = None
     with transaction.atomic():
         outstanding = (
@@ -144,10 +185,27 @@ def rotate_tokens(raw: str) -> TokenPair:
             if user is None or user.auth_epoch != claims.epoch:
                 raise InvalidToken
             BlacklistedToken.objects.create(token=outstanding)
-            return issue_tokens(user)
+            return issue_tokens(user, session=claims)
     if reused is not None:  # always true here; committed before raising so the 401 cannot roll it back
         _handle_reuse(reused, claims.jti)
     raise RefreshReuseDetected
+
+
+def _handle_session_expired(claims: Claims) -> None:
+    """Audit the refusal. The signature already proved the claims, so the user id is trustworthy."""
+    user = User.objects.filter(pk=claims.user_id).first()
+    if user is None:
+        return
+    with transaction.atomic():
+        record(
+            action=actions.AUTH_SESSION_EXPIRED,
+            actor=Actor.user(user),
+            object_type="user",
+            object_id=user.pk,
+            outcome=Outcome.FAILURE,
+            metadata={"session_started_at": claims.session_started_at},
+        )
+    logger.info("session past its absolute lifetime", extra={"user_id": str(user.pk)})
 
 
 def _handle_reuse(user: User, jti: str) -> None:
@@ -168,19 +226,42 @@ def _handle_reuse(user: User, jti: str) -> None:
     )
 
 
-def revoke_refresh(raw: str, *, user_id: uuid.UUID | None = None) -> bool:
-    """Blacklist a refresh token (logout). Idempotent; never reveals whether the token was valid.
+class Revocation(enum.Enum):
+    REVOKED = "revoked"  # a live session was ended just now
+    NOTHING = "nothing"  # invalid, expired, foreign, stale or unknown: nothing changed
+    REUSE_DETECTED = "reuse_detected"  # a blacklisted token was presented again; every session was revoked
 
-    With ``user_id``, a token that belongs to someone else is left alone."""
+
+@dataclass(frozen=True)
+class RevokeResult:
+    outcome: Revocation
+    user: User | None = None
+
+
+def revoke_session(raw: str, *, caller_id: uuid.UUID | None = None) -> RevokeResult:
+    """Logout: end the session a refresh token belongs to. Idempotent and never says why it did nothing.
+
+    With ``caller_id`` (the caller proved who they are another way) a token of someone else is left alone.
+    A token of an old epoch or an expired session is already dead and is not touched. A token that is
+    already blacklisted (rotated or logged out) is treated exactly as on refresh: theft, so every session
+    of its owner is revoked. The caller writes the audit event in the same transaction on ``REVOKED``.
+    """
+    nothing = RevokeResult(Revocation.NOTHING)
     try:
         claims = _decode(raw, REFRESH)
     except InvalidToken:
-        return False
-    if user_id is not None and claims.user_id != user_id:
-        return False
+        return nothing
+    if (caller_id is not None and claims.user_id != caller_id) or claims.session_expired():
+        return nothing
     with transaction.atomic():
-        outstanding = OutstandingToken.objects.select_for_update().filter(jti=claims.jti).first()
-        if outstanding is None or outstanding.user_id != claims.user_id:
-            return False
-        BlacklistedToken.objects.get_or_create(token=outstanding)
-    return True
+        outstanding = OutstandingToken.objects.select_for_update(of=("self",)).filter(jti=claims.jti).first()
+        user = User.objects.filter(pk=claims.user_id, is_active=True).first()
+        if outstanding is None or outstanding.user_id != claims.user_id or user is None:
+            return nothing
+        if user.auth_epoch != claims.epoch:
+            return nothing
+        _, created = BlacklistedToken.objects.get_or_create(token=outstanding)
+    if created:
+        return RevokeResult(Revocation.REVOKED, user)
+    _handle_reuse(user, claims.jti)
+    return RevokeResult(Revocation.REUSE_DETECTED, user)

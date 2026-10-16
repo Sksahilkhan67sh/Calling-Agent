@@ -25,7 +25,7 @@ def test_auth_security_schemes_are_declared(schema, settings):
     [
         ("/v1/auth/token", {"200", "400", "401", "429"}),
         ("/v1/auth/token/refresh", {"200", "401", "429"}),
-        ("/v1/auth/logout", {"204", "401"}),
+        ("/v1/auth/logout", {"204", "403"}),
     ],
 )
 def test_contract_auth_paths_document_their_responses(schema, path, codes):

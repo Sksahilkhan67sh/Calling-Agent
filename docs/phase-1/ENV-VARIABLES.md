@@ -27,6 +27,7 @@ Business configuration (retry policy, agent config) is **not** an environment va
 | `CORS_ALLOWED_ORIGINS` | prod/staging | no | empty (dev uses `http://localhost:3000`) | Comma list of origins (`scheme://host[:port]`); no wildcard/path. Credentialed CORS is on (cookie auth), so prod requires a non-empty `https://` list. **Required in prod since Phase 2** |
 | `JWT_ACCESS_LIFETIME_SECONDS` | no | no | `900` | Access-token lifetime, 60–3600 (Phase 2) |
 | `JWT_REFRESH_LIFETIME_SECONDS` | no | no | `86400` | Refresh-token lifetime, 3600–2592000. Tokens rotate on every use, so this is an idle timeout (Phase 2) |
+| `SESSION_ABSOLUTE_MAX_DAYS` | prod/staging | no | `7` | Absolute session cap, 1–90 days, measured from the original login and never extended by token rotation. Prod must set it and it may not be shorter than `JWT_REFRESH_LIFETIME_SECONDS` (Phase 2, R6) |
 | `AUTH_COOKIE_SAMESITE` | no | no | `Lax` | `Lax` or `Strict` for the auth and CSRF cookies; `None` is refused (Phase 2) |
 | `AUTH_COOKIE_DOMAIN` | no | no | empty | Optional cookie domain. Empty enables `__Host-` cookie names; set switches to `__Secure-` (Phase 2) |
 | `AUTH_TOKENS_IN_BODY` | no | no | `false` | Return tokens in the login body for non-browser clients. Keep `false` for the dashboard (Phase 2) |

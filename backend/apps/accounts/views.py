@@ -3,7 +3,10 @@ MFA-enrolment additions. Every response is uncacheable; failures are uniform."""
 
 from __future__ import annotations
 
+import logging
 import re
+import uuid
+from datetime import UTC, datetime
 from typing import Any, cast
 
 from django.conf import settings
@@ -11,33 +14,48 @@ from django.db import transaction
 from django.middleware.csrf import get_token
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts import mfa
-from apps.accounts.authentication import EnrollmentTokenAuthentication, enforce_csrf
+from apps.accounts.authentication import (
+    AccessCredential,
+    CookieJWTAuthentication,
+    EnrollmentTokenAuthentication,
+    enforce_csrf,
+)
 from apps.accounts.cookies import clear_auth_cookies, no_store, rotate_csrf, set_auth_cookies
 from apps.accounts.login import check_credentials
 from apps.accounts.models import User
 from apps.accounts.parsers import BoundedJSONParser
-from apps.accounts.permissions import IsEnrollmentCredential
+from apps.accounts.permissions import IsEnrollmentCredential, IsHumanSession
 from apps.accounts.serializers import (
     AuthenticatedSerializer,
     ErrorSerializer,
+    MeSerializer,
     MfaConfirmSerializer,
     MfaEnrollResponseSerializer,
     RefreshBodySerializer,
     TokenRequestSerializer,
 )
-from apps.accounts.tokens import InvalidToken, TokenPair, issue_tokens, revoke_refresh, rotate_tokens
+from apps.accounts.tokens import (
+    InvalidToken,
+    Revocation,
+    TokenPair,
+    issue_tokens,
+    read_access,
+    revoke_session,
+    rotate_tokens,
+)
 from apps.audit import actions
 from apps.audit.models import Outcome
 from apps.audit.service import Actor, record
 from apps.core import error_codes
 from apps.core.permissions import PublicEndpoint
-from apps.core.throttles import LoginThrottle
+from apps.core.throttles import ApiUserThrottle, LoginThrottle
+
+logger = logging.getLogger(__name__)
 
 _EMAIL_LIKE = re.compile(
     r"[^@\s]{1,64}@[^@\s]{1,255}"
@@ -206,38 +224,64 @@ class RefreshView(AuthAPIView):
 
 
 class LogoutView(AuthAPIView):
-    """POST /auth/logout: blacklist the caller's refresh token, clear cookies. Idempotent."""
+    """POST /auth/logout: end the caller's session and clear the cookies. Always 204 once CSRF passes.
 
+    The caller is identified by the access credential, or by the refresh cookie alone when the access
+    cookie is missing or expired. CSRF is enforced whenever any auth cookie is present, before any token is
+    read. Only a session that was really ended is audited; everything else is a silent no-op, so the
+    response never reveals whether a credential was valid.
+    """
+
+    authentication_classes: list[Any] = []  # credentials are read below; a stale access cookie must not 401
+    permission_classes = [PublicEndpoint]
     throttle_classes = list(APIView.throttle_classes)  # the default per-user throttle, not the login scope
-    permission_classes = [IsAuthenticated]
 
     @extend_schema(
         tags=["Auth"],
         summary="Blacklist the refresh token and clear cookies",
         request=RefreshBodySerializer,
         responses={
-            204: OpenApiResponse(description="Logged out"),
-            401: OpenApiResponse(ErrorSerializer, description="Not authenticated"),
+            204: OpenApiResponse(description="Logged out (also when there was nothing to log out)"),
+            403: OpenApiResponse(ErrorSerializer, description="CSRF check failed"),
         },
     )
     def post(self, request: Request) -> Response:
         body = RefreshBodySerializer(data=request.data if request.data else {})
         body.is_valid(raise_exception=True)
-        raw = request.COOKIES.get(settings.AUTH_REFRESH_COOKIE_NAME)
-        if not raw and settings.AUTH_TOKENS_IN_BODY:
-            raw = body.validated_data.get("refresh")
-        with transaction.atomic():
-            if raw:
-                revoke_refresh(raw, user_id=cast(User, request.user).pk)  # only the caller's own token
-            record(
-                action=actions.AUTH_LOGOUT,
-                actor=Actor.user(request.user),
-                object_type="user",
-                object_id=request.user.pk,
-            )
+        access_cookie = request.COOKIES.get(settings.AUTH_ACCESS_COOKIE_NAME)
+        refresh_raw = request.COOKIES.get(settings.AUTH_REFRESH_COOKIE_NAME)
+        if access_cookie or refresh_raw:
+            enforce_csrf(request)  # ambient credentials: a cross-site request must not end a session
+        if not refresh_raw and settings.AUTH_TOKENS_IN_BODY:
+            refresh_raw = body.validated_data.get("refresh")
+        caller = self._caller(request, access_cookie)
+        with transaction.atomic():  # blacklist and audit together: no audit, no logout (fail closed)
+            result = revoke_session(refresh_raw, caller_id=caller) if refresh_raw else None
+            if result is not None and result.outcome is Revocation.REVOKED:
+                record(
+                    action=actions.AUTH_LOGOUT,
+                    actor=Actor.user(cast(User, result.user)),
+                    object_type="user",
+                    object_id=cast(User, result.user).pk,
+                    metadata={"identified_by": "access" if caller else "refresh"},
+                )
         response = Response(status=status.HTTP_204_NO_CONTENT)
         clear_auth_cookies(response)
         return response
+
+    @staticmethod
+    def _caller(request: Request, access_cookie: str | None) -> uuid.UUID | None:
+        """The user the access credential proves, or None (missing, expired and invalid look the same)."""
+        raw = access_cookie
+        if settings.AUTH_TOKENS_IN_BODY:
+            scheme, _, token = request.META.get("HTTP_AUTHORIZATION", "").partition(" ")
+            raw = token.strip() if scheme.lower() == "bearer" else raw
+        if not raw:
+            return None
+        try:
+            return read_access(raw)[0].pk
+        except InvalidToken:
+            return None
 
 
 class CsrfView(AuthAPIView):
@@ -317,3 +361,43 @@ class MfaConfirmView(_EnrolmentView):
         except mfa.InvalidCode:
             return error(error_codes.INVALID_CODE)
         return _start_session(request, User.objects.get(pk=user.pk), mfa_used=True)  # epoch moved: reload
+
+
+class MeView(AuthAPIView):
+    """GET /auth/me: who is signed in, for the single-page app (identity, roles, capabilities, MFA, session).
+
+    Open to any human with a full session (no capability needed to read your own identity). The enrolment
+    authenticator is listed only so a restricted credential is answered with 403 instead of looking anonymous.
+    """
+
+    authentication_classes = [CookieJWTAuthentication, EnrollmentTokenAuthentication]
+    permission_classes = [IsHumanSession]
+    throttle_classes = [ApiUserThrottle]
+
+    @extend_schema(
+        tags=["Auth"],
+        summary="The signed-in user: roles, capabilities, MFA state and session expiry",
+        responses={
+            200: OpenApiResponse(MeSerializer, description="Current user"),
+            401: OpenApiResponse(ErrorSerializer, description="Not authenticated"),
+            403: OpenApiResponse(ErrorSerializer, description="Not a full human session"),
+            429: OpenApiResponse(ErrorSerializer, description="Too many requests"),
+        },
+    )
+    def get(self, request: Request) -> Response:
+        user: User = request.user  # type: ignore[assignment]  # IsHumanSession guarantees a User
+        credential: AccessCredential = request.auth  # type: ignore[assignment]
+        logger.info("identity read", extra={"user_id": str(user.pk)})
+        payload = {
+            "id": user.pk,
+            "email": user.email,
+            "full_name": user.full_name,
+            "roles": sorted(user.role_names()),
+            "capabilities": sorted(user.capabilities()),  # from the registry; is_superuser adds nothing
+            "mfa": {"required": user.requires_mfa, "enrolled": user.has_active_mfa_device},
+            "session": {
+                "access_expires_at": datetime.fromtimestamp(credential.access_expires_at, UTC),
+                "absolute_expires_at": datetime.fromtimestamp(credential.session_expires_at, UTC),
+            },
+        }
+        return Response(MeSerializer(payload).data)
