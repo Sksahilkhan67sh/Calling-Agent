@@ -12,3 +12,17 @@ _Populated by the task that owns it (see PROGRESS.md)._
 - `POST /auth/logout`: requires the CSRF header with cookie authentication; add `401`, `403`.
 - New: `GET /auth/csrf` (204, sets the CSRF cookie), `POST /auth/mfa/enroll`, `POST /auth/mfa/confirm` secured by a new `MfaEnroll` HTTP scheme (see P2-07 entry).
 - Document the cookie names and flags (`__Host-access`, `__Secure-refresh`, CSRF cookie readable by the SPA) in the security scheme descriptions.
+
+## R2 Error responses (API-Specification.yaml)
+- Every `4xx/5xx` response in the contract should reference `#/components/schemas/Error`; today only some do. Add the standard responses `BadRequest 400`, `Forbidden 403`, `NotFound 404`, `TooManyRequests 429` (with `Retry-After` header) and `ServerError 500` under `components/responses` and reference them.
+- Proposed text for field-level validation (the contract has none, so none was invented): either keep `Error` as is and accept non-specific 400s, or extend it compatibly with an optional `fields: {name: [code]}` map of stable codes (never values). Phase 2 emits only `{code, message}` until the human decides.
+- Document the code registry (`apps/core/error_codes.py`) as the enumeration for `Error.code`:
+```yaml
+Error:
+  type: object
+  required: [code, message]
+  properties:
+    code:    {type: string, enum: [invalid_request, invalid_credentials, forbidden, csrf_failed, not_found, method_not_allowed, not_acceptable, payload_too_large, unsupported_media_type, throttled, internal_error, enrollment_unavailable, no_enrollment, invalid_code]}
+    message: {type: string}
+```
+
