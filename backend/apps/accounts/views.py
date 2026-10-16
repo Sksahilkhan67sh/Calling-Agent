@@ -3,7 +3,9 @@ MFA-enrolment additions. Every response is uncacheable; failures are uniform."""
 
 from __future__ import annotations
 
+import logging
 import re
+from datetime import UTC, datetime
 from typing import Any, cast
 
 from django.conf import settings
@@ -17,15 +19,21 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts import mfa
-from apps.accounts.authentication import EnrollmentTokenAuthentication, enforce_csrf
+from apps.accounts.authentication import (
+    AccessCredential,
+    CookieJWTAuthentication,
+    EnrollmentTokenAuthentication,
+    enforce_csrf,
+)
 from apps.accounts.cookies import clear_auth_cookies, no_store, rotate_csrf, set_auth_cookies
 from apps.accounts.login import check_credentials
 from apps.accounts.models import User
 from apps.accounts.parsers import BoundedJSONParser
-from apps.accounts.permissions import IsEnrollmentCredential
+from apps.accounts.permissions import IsEnrollmentCredential, IsHumanSession
 from apps.accounts.serializers import (
     AuthenticatedSerializer,
     ErrorSerializer,
+    MeSerializer,
     MfaConfirmSerializer,
     MfaEnrollResponseSerializer,
     RefreshBodySerializer,
@@ -37,7 +45,9 @@ from apps.audit.models import Outcome
 from apps.audit.service import Actor, record
 from apps.core import error_codes
 from apps.core.permissions import PublicEndpoint
-from apps.core.throttles import LoginThrottle
+from apps.core.throttles import ApiUserThrottle, LoginThrottle
+
+logger = logging.getLogger(__name__)
 
 _EMAIL_LIKE = re.compile(
     r"[^@\s]{1,64}@[^@\s]{1,255}"
@@ -317,3 +327,43 @@ class MfaConfirmView(_EnrolmentView):
         except mfa.InvalidCode:
             return error(error_codes.INVALID_CODE)
         return _start_session(request, User.objects.get(pk=user.pk), mfa_used=True)  # epoch moved: reload
+
+
+class MeView(AuthAPIView):
+    """GET /auth/me: who is signed in, for the single-page app (identity, roles, capabilities, MFA, session).
+
+    Open to any human with a full session (no capability needed to read your own identity). The enrolment
+    authenticator is listed only so a restricted credential is answered with 403 instead of looking anonymous.
+    """
+
+    authentication_classes = [CookieJWTAuthentication, EnrollmentTokenAuthentication]
+    permission_classes = [IsHumanSession]
+    throttle_classes = [ApiUserThrottle]
+
+    @extend_schema(
+        tags=["Auth"],
+        summary="The signed-in user: roles, capabilities, MFA state and session expiry",
+        responses={
+            200: OpenApiResponse(MeSerializer, description="Current user"),
+            401: OpenApiResponse(ErrorSerializer, description="Not authenticated"),
+            403: OpenApiResponse(ErrorSerializer, description="Not a full human session"),
+            429: OpenApiResponse(ErrorSerializer, description="Too many requests"),
+        },
+    )
+    def get(self, request: Request) -> Response:
+        user: User = request.user  # type: ignore[assignment]  # IsHumanSession guarantees a User
+        credential: AccessCredential = request.auth  # type: ignore[assignment]
+        logger.info("identity read", extra={"user_id": str(user.pk)})
+        payload = {
+            "id": user.pk,
+            "email": user.email,
+            "full_name": user.full_name,
+            "roles": sorted(user.role_names()),
+            "capabilities": sorted(user.capabilities()),  # from the registry; is_superuser adds nothing
+            "mfa": {"required": user.requires_mfa, "enrolled": user.has_active_mfa_device},
+            "session": {
+                "access_expires_at": datetime.fromtimestamp(credential.access_expires_at, UTC),
+                "absolute_expires_at": datetime.fromtimestamp(credential.session_expires_at, UTC),
+            },
+        }
+        return Response(MeSerializer(payload).data)

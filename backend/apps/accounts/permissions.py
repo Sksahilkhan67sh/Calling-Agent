@@ -10,6 +10,7 @@ from rest_framework.exceptions import APIException, NotFound
 from rest_framework.permissions import BasePermission
 from rest_framework.request import Request
 
+from apps.accounts.models import User
 from apps.accounts.roles import CAPABILITY_NAMES
 
 if TYPE_CHECKING:
@@ -62,6 +63,20 @@ def HasCapability(*names: str) -> type[CapabilityPermission]:  # noqa: N802 - us
     if unknown:
         raise ValueError(f"Unknown capability: {unknown}")
     return _build(tuple(dict.fromkeys(names)))
+
+
+class IsHumanSession(BasePermission):
+    """An authenticated person with a full session: for identity-only endpoints that need no capability.
+
+    Refuses API clients (not a ``User``) and restricted credentials such as the MFA enrolment token.
+    """
+
+    def has_permission(self, request: Request, view: APIView) -> bool:
+        return (
+            isinstance(request.user, User)
+            and request.user.is_authenticated
+            and getattr(request.auth, "restricted", True) is False  # fail closed if the flag is missing
+        )
 
 
 class IsEnrollmentCredential(BasePermission):

@@ -66,3 +66,26 @@ class MfaEnrollResponseSerializer(serializers.Serializer[Any]):
     secret = serializers.CharField()
     provisioning_uri = serializers.CharField()
     issuer = serializers.CharField()
+
+
+class MfaStateSerializer(serializers.Serializer[Any]):
+    # ``required`` is the API's name for the field; it shadows DRF's ``Field.required`` flag only for typing.
+    required = serializers.BooleanField()  # type: ignore[assignment]
+    enrolled = serializers.BooleanField()
+
+
+class SessionStateSerializer(serializers.Serializer[Any]):
+    access_expires_at = serializers.DateTimeField()
+    absolute_expires_at = serializers.DateTimeField()
+
+
+class MeSerializer(serializers.Serializer[Any]):
+    """``GET /auth/me``. Exactly these keys: nothing else about the account may leave the server."""
+
+    id = serializers.UUIDField()
+    email = serializers.EmailField()
+    full_name = serializers.CharField(allow_blank=True)
+    roles = serializers.ListField(child=serializers.CharField())
+    capabilities = serializers.ListField(child=serializers.CharField())
+    mfa = MfaStateSerializer()
+    session = SessionStateSerializer()
