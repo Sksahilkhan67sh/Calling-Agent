@@ -45,3 +45,7 @@ _Populated by the task that owns it (see PROGRESS.md)._
   - (b) **Dependabot config, as a separate PR after Phase 2 (not part of this branch):** `ignore` Django semver-major (and minor) updates so 5.2.x security patches still arrive; add `cooldown` of 14 days for pip and docker ecosystems (Dependabot `cooldown: default-days: 14`), so the repository rule is enforced by tooling rather than by review. Also pin the Docker base image to the project's Python (3.12) or decide on 3.14 deliberately (see DECISIONS.md).
 - **OQ2-25 A GitHub personal access token was shared in the chat/upload.** It was not needed (the repo is public) and was not used. Treat it as exposed: revoke it on GitHub and create a new one only if a push is wanted.
 
+## From R3/R4
+- **OQ2-26 Access tokens cannot be revoked individually.** Logout with the access cookie alone leaves that token valid until it expires (15 min). Options if the human wants it closed: deny-list by `jti`/`sid` in Redis, or a server-side session table. Recommendation: accept for Phase 2 (short lifetime, epoch bump on password change/MFA reset/role change/deactivation/logout-everywhere in P2-11).
+- **OQ2-27 Replayed refresh token on logout revokes every session of its owner** (decision in DECISIONS.md, R4). Reconsider if real clients are seen double-posting logout with the same stale cookie.
+

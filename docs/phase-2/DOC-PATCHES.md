@@ -69,3 +69,16 @@ components:
     cookieAuth: {type: apiKey, in: cookie, name: <access cookie name; __Host- prefix in production>}
 ```
 
+## R4 `POST /auth/logout`
+- Proposed text: logout identifies the caller by the access cookie **or**, when that is missing or expired, by the refresh cookie; it is idempotent and answers `204` for any caller (no credentials, expired, invalid, already revoked) with the auth cookies cleared; `403` only when CSRF fails while a cookie is present. Replaying an already-blacklisted refresh token revokes every session of its owner (same as `/auth/token/refresh`), still answering `204`.
+```yaml
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: End the current session and clear cookies (idempotent)
+      security: [{cookieAuth: []}, {}]      # also usable with only the refresh cookie, or with no credentials
+      responses:
+        '204': {description: Logged out (or nothing to log out); auth cookies cleared}
+        '403': {$ref: '#/components/responses/Forbidden'}   # CSRF header missing or wrong while a cookie is present
+```
+
