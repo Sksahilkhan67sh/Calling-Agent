@@ -146,3 +146,23 @@ Implemented to the contract: `POST /auth/token` (200/401/429, `security: []`), `
 - **Phase 1 tests changed in the same commit:** `tests/core/test_exceptions_permissions.py` (500 body, default-deny message) and, from Phase 2, `tests/accounts/test_cookie_auth.py` (CSRF 403 used to assert the word CSRF in the body; the body is now the generic `forbidden`). Phase 1 *source* touched: `apps/core/exceptions.py`, `apps/core/permissions.py`, `config/urls.py`, `config/settings/base.py`.
 - **DRF quirk worth knowing:** a view without an authenticator that offers a `WWW-Authenticate` challenge turns `NotAuthenticated`/`AuthenticationFailed` into 403, not 401. All real views have the cookie or enrolment authenticator; the test urlconf covers both forms.
 
+## Dependency policy: Django 5.2 LTS, and the Dependabot bumps on `main` (OQ2-24, human decision 2026-10-16)
+- **Decision:** Phase 2 stays on Django 5.2 LTS (`Django>=5.2.17,<5.3`). The Django 6.1.2 bump on `main` (and anything that exists only to support it) is not taken into this branch.
+- **Closeout procedure (P2-23, before the final verification):** merge (or rebase) `origin/main` into `phase-2/identity-security`; resolve `backend/requirements/*.in|*.txt` by keeping Django 5.2.x, re-run `pip-compile --generate-hashes` for base/prod/dev (inside the project's pip-tools version) so the hashed locks are regenerated rather than hand-merged; re-run the whole verification pass (P2-21) on the merged result; record the outcome here and in EVIDENCE.md. Do not take the `docker/Dockerfile` change (see below) unless the human decides otherwise.
+- **Every other Dependabot bump from `main` was checked on 2026-10-16** against the 14-day cooling-off rule (release date from the PyPI JSON API; the release must be on or before 2026-10-02) and `pip-audit` (candidate versions, the current pins and Django 6.1.2: all "No known vulnerabilities found", so nothing is urgent):
+
+| Package | Branch -> main | Released | Age | Verdict |
+|---|---|---|---|---|
+| cryptography | 50.0.1 -> 50.0.2 | 2026-09-30 | 16 d | eligible; take at closeout re-lock if gates still pass |
+| mypy | 2.3.1 -> 2.4.0 | 2026-10-01 | 15 d | eligible; take at closeout if `mypy` strict stays clean |
+| librt (mypy dependency) | 0.15.0 -> 0.16.0 | 2026-09-29 | 17 d | eligible; moves with mypy |
+| django-stubs | 6.1.1 -> 6.1.2 | 2026-10-05 | 11 d | hold (cooling-off) |
+| djangorestframework | 3.18.1 -> 3.18.3 | 2026-10-06 | 10 d | hold (cooling-off) |
+| pip-tools | 7.6.1 -> 7.6.2 | 2026-10-07 | 9 d | hold (cooling-off) |
+| ruff | 0.16.9 -> 0.17.0 | 2026-10-09 | 7 d | hold (cooling-off) |
+| Django | 5.2.17 -> 6.1.2 | 2026-10-06 | 10 d | rejected: major version, outside the decision above, and inside cooling-off |
+| Docker base image | python 3.12 -> 3.14 | n/a | n/a | rejected for this branch: the project targets Python 3.12 (`PYTHON` input) and Phase 2 was never run on 3.14; separate decision |
+
+- **Re-check at closeout** with the same two checks (hold items become eligible on 2026-10-19 django-stubs, 10-20 DRF, 10-21 pip-tools, 10-23 ruff); anything still inside the window stays at the branch's current pin. The method (PyPI `urls[].upload_time_iso_8601` minimum per version, cutoff = today minus 14 days; `pip-audit -r <pins> --no-deps`) is repeated, not assumed. Accepting a bump means regenerating the hashes and re-running all gates, not copying `main`'s lock lines.
+- The four pins that appear "removed" in a naive diff against `main` (`django-axes`, `djangorestframework-simplejwt`, `pyjwt`, `pyotp`) are this phase's own additions, not removals on `main`.
+
