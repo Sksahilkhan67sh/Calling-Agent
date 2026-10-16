@@ -181,3 +181,25 @@ def test_test_only_app_is_never_installed_outside_test_settings(module, prod_env
 
 def test_test_settings_install_the_test_app(monkeypatch):
     assert "tests.testapp" in load_settings("config.settings.test", {}, monkeypatch).INSTALLED_APPS
+
+
+def test_session_cap_is_derived_from_days(prod_env, monkeypatch):
+    s = load_settings("config.settings.prod", {**prod_env, "SESSION_ABSOLUTE_MAX_DAYS": "14"}, monkeypatch)
+    assert s.JWT_SESSION_ABSOLUTE_MAX_SECONDS == 14 * 86400
+
+
+@pytest.mark.parametrize(("value", "needle"), [("0", "at least"), ("91", "at most"), ("week", "integer")])
+def test_prod_rejects_out_of_range_session_cap(value, needle, prod_env, monkeypatch):
+    with pytest.raises(ConfigError, match=needle):
+        load_settings("config.settings.prod", {**prod_env, "SESSION_ABSOLUTE_MAX_DAYS": value}, monkeypatch)
+
+
+def test_prod_rejects_a_session_cap_shorter_than_the_refresh_lifetime(prod_env, monkeypatch):
+    env = {**prod_env, "SESSION_ABSOLUTE_MAX_DAYS": "1", "JWT_REFRESH_LIFETIME_SECONDS": "172800"}
+    with pytest.raises(ConfigError, match="not be shorter than JWT_REFRESH_LIFETIME_SECONDS"):
+        load_settings("config.settings.prod", env, monkeypatch)
+
+
+def test_prod_accepts_a_session_cap_equal_to_the_refresh_lifetime(prod_env, monkeypatch):
+    env = {**prod_env, "SESSION_ABSOLUTE_MAX_DAYS": "1", "JWT_REFRESH_LIFETIME_SECONDS": "86400"}
+    assert load_settings("config.settings.prod", env, monkeypatch).JWT_SESSION_ABSOLUTE_MAX_SECONDS == 86400

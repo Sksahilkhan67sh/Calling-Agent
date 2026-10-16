@@ -12,7 +12,7 @@ from rest_framework.request import Request
 
 from apps.accounts.mfa import EnrollmentTokenInvalid, read_enrollment_token
 from apps.accounts.models import User
-from apps.accounts.tokens import InvalidToken, read_access
+from apps.accounts.tokens import Claims, InvalidToken, read_access
 from apps.core.logging import bind_context
 
 _UNIFORM = "Invalid credentials."
@@ -24,7 +24,13 @@ class AccessCredential:
 
     jti: str
     via: str  # "cookie" or "bearer"
+    access_expires_at: int  # epoch seconds
+    session_expires_at: int  # epoch seconds: the absolute cap
     restricted = False
+
+
+def _credential(claims: Claims, via: str) -> AccessCredential:
+    return AccessCredential(claims.jti, via, int(claims.expires_at), claims.session_expires_at)
 
 
 def enforce_csrf(request: Request) -> None:
@@ -46,14 +52,14 @@ class CookieJWTAuthentication(BaseAuthentication):
     def authenticate(self, request: Request) -> tuple[User, AccessCredential] | None:
         bearer = self._bearer(request) if settings.AUTH_TOKENS_IN_BODY else None
         if bearer is not None:
-            user, jti = self._user_for(bearer)
-            return user, AccessCredential(jti, "bearer")
+            user, claims = self._user_for(bearer)
+            return user, _credential(claims, "bearer")
         raw = request.COOKIES.get(settings.AUTH_ACCESS_COOKIE_NAME)
         if not raw:
             return None
-        user, jti = self._user_for(raw)
+        user, claims = self._user_for(raw)
         enforce_csrf(request)  # 403 on failure, after the token itself proved valid
-        return user, AccessCredential(jti, "cookie")
+        return user, _credential(claims, "cookie")
 
     @staticmethod
     def _bearer(request: Request) -> str | None:
@@ -61,13 +67,13 @@ class CookieJWTAuthentication(BaseAuthentication):
         return token.strip() if scheme.lower() == "bearer" else None
 
     @staticmethod
-    def _user_for(raw: str) -> tuple[User, str]:
+    def _user_for(raw: str) -> tuple[User, Claims]:
         try:
             user, claims = read_access(raw)
         except InvalidToken:
             raise AuthenticationFailed(_UNIFORM) from None
         bind_context(user_id=user.pk)
-        return user, claims.jti
+        return user, claims
 
 
 class EnrollmentCredential:

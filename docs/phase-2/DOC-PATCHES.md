@@ -26,3 +26,59 @@ Error:
     message: {type: string}
 ```
 
+## R3 `GET /auth/me` (addition to API-Specification.yaml)
+```yaml
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: The signed-in user, their roles, effective capabilities, MFA state and session expiry
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Current user (Cache-Control no-store)
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Me'}
+        '401': {$ref: '#/components/responses/Unauthorized'}   # Error {code: invalid_credentials}
+        '403': {$ref: '#/components/responses/Forbidden'}      # API client or MFA-enrolment credential
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+components:
+  schemas:
+    Me:
+      type: object
+      required: [id, email, full_name, roles, capabilities, mfa, session]
+      additionalProperties: false
+      properties:
+        id: {type: string, format: uuid}
+        email: {type: string, format: email}
+        full_name: {type: string}
+        roles: {type: array, items: {type: string}}
+        capabilities: {type: array, items: {type: string}, description: Sorted effective set (roles plus per-user grants); is_superuser grants nothing}
+        mfa:
+          type: object
+          required: [required, enrolled]
+          properties: {required: {type: boolean}, enrolled: {type: boolean}}
+        session:
+          type: object
+          required: [access_expires_at, absolute_expires_at]
+          properties:
+            access_expires_at: {type: string, format: date-time}
+            absolute_expires_at: {type: string, format: date-time, description: End of the absolute session cap; never extended by refresh}
+  securitySchemes:
+    cookieAuth: {type: apiKey, in: cookie, name: <access cookie name; __Host- prefix in production>}
+```
+
+## R4 `POST /auth/logout`
+- Proposed text: logout identifies the caller by the access cookie **or**, when that is missing or expired, by the refresh cookie; it is idempotent and answers `204` for any caller (no credentials, expired, invalid, already revoked) with the auth cookies cleared; `403` only when CSRF fails while a cookie is present. Replaying an already-blacklisted refresh token revokes every session of its owner (same as `/auth/token/refresh`), still answering `204`.
+```yaml
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: End the current session and clear cookies (idempotent)
+      security: [{cookieAuth: []}, {}]      # also usable with only the refresh cookie, or with no credentials
+      responses:
+        '204': {description: Logged out (or nothing to log out); auth cookies cleared}
+        '403': {$ref: '#/components/responses/Forbidden'}   # CSRF header missing or wrong while a cookie is present
+```
+

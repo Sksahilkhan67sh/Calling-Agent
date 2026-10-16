@@ -168,6 +168,10 @@ JWT_AUDIENCE = "ai-calling-agent-dashboard"
 JWT_ACCESS_LIFETIME_SECONDS = as_int("JWT_ACCESS_LIFETIME_SECONDS", 900, minimum=60, maximum=3600)
 # Refresh tokens rotate on every use, so this is an idle timeout: 24 h idle forces a new login (+MFA).
 JWT_REFRESH_LIFETIME_SECONDS = as_int("JWT_REFRESH_LIFETIME_SECONDS", 86400, minimum=3600, maximum=2592000)
+# Absolute session cap: a session (a chain of rotated refresh tokens) never outlives this, however active.
+SESSION_ABSOLUTE_MAX_DAYS = as_int("SESSION_ABSOLUTE_MAX_DAYS", 7, minimum=1, maximum=90)
+JWT_SESSION_ABSOLUTE_MAX_SECONDS = SESSION_ABSOLUTE_MAX_DAYS * 86400
+
 SIMPLE_JWT: dict[str, Any] = {
     "ACCESS_TOKEN_LIFETIME": timedelta(seconds=JWT_ACCESS_LIFETIME_SECONDS),
     "REFRESH_TOKEN_LIFETIME": timedelta(seconds=JWT_REFRESH_LIFETIME_SECONDS),

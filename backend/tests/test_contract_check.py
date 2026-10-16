@@ -74,6 +74,7 @@ def test_documented_proposed_additions_are_informational():
     impl = _doc(
         {
             "/auth/csrf": {"get": op(codes=("204",))},
+            "/auth/me": {"get": op(codes=("200", "401"))},
             "/auth/mfa/enroll": {"post": op()},
             "/auth/mfa/confirm": {"post": op()},
         }
@@ -82,6 +83,7 @@ def test_documented_proposed_additions_are_informational():
     assert report.exit_code == 0 and report.drift == []
     assert report.proposed_additions == [
         "GET /auth/csrf",
+        "GET /auth/me",
         "POST /auth/mfa/confirm",
         "POST /auth/mfa/enroll",
     ]

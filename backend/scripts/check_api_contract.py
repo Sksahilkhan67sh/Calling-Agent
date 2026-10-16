@@ -32,6 +32,7 @@ SERVER_PREFIX = "/v1"
 HTTP_METHODS = {"get", "put", "post", "patch", "delete"}
 PROPOSED_ADDITIONS = {
     ("get", "/auth/csrf"),
+    ("get", "/auth/me"),
     ("post", "/auth/mfa/enroll"),
     ("post", "/auth/mfa/confirm"),
 }

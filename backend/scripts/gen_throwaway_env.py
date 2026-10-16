@@ -22,6 +22,7 @@ def main() -> None:
         "API_RATE_LIMIT_PER_MINUTE": "600",
         "WEBHOOK_RATE_LIMIT_PER_MINUTE": "1200",
         "LOGIN_RATE_LIMIT_PER_MINUTE": "5",
+        "SESSION_ABSOLUTE_MAX_DAYS": "7",
         "AXES_FAILURE_LIMIT": "5",
         "TRUSTED_PROXY_COUNT": "1",
         "CORS_ALLOWED_ORIGINS": "https://dashboard.calls.test",
