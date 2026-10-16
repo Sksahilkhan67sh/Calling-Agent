@@ -14,7 +14,7 @@
 | P2-09 | Auth endpoints | DONE | EVIDENCE P2-09, R1 | aa2bae0, 6d32d34 | root | deps: P2-07, P2-08 |
 | R1 | State verification and baseline | DONE | EVIDENCE R1 | 6d32d34 | root | found P2-09 regression (deploy check), fixed |
 | R2 | Global error handler aligned to contract (OQ2-20) | DONE | EVIDENCE R2 | see log | root | 897 tests, 100% cov |
-| R3 | GET /auth/me (OQ2-21) | TODO | - | - | s1 | deps: R2, R6 |
+| R3 | GET /auth/me (OQ2-21) | DONE | EVIDENCE R3 | see log | s1 | API-client 403 proven end-to-end in P2-12 |
 | R4 | Logout via refresh cookie + CSRF (OQ2-22) | TODO | - | - | s1 | deps: R2 |
 | R5 | Out-of-band MFA enrollment code (OQ2-19) | TODO | - | - | s2 | deps: R2 |
 | R6 | Absolute session lifetime cap (OQ2-01) | DONE | EVIDENCE R6 | see log | s1 | deps: R2 |

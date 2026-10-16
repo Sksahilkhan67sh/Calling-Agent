@@ -26,3 +26,46 @@ Error:
     message: {type: string}
 ```
 
+## R3 `GET /auth/me` (addition to API-Specification.yaml)
+```yaml
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: The signed-in user, their roles, effective capabilities, MFA state and session expiry
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Current user (Cache-Control no-store)
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Me'}
+        '401': {$ref: '#/components/responses/Unauthorized'}   # Error {code: invalid_credentials}
+        '403': {$ref: '#/components/responses/Forbidden'}      # API client or MFA-enrolment credential
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+components:
+  schemas:
+    Me:
+      type: object
+      required: [id, email, full_name, roles, capabilities, mfa, session]
+      additionalProperties: false
+      properties:
+        id: {type: string, format: uuid}
+        email: {type: string, format: email}
+        full_name: {type: string}
+        roles: {type: array, items: {type: string}}
+        capabilities: {type: array, items: {type: string}, description: Sorted effective set (roles plus per-user grants); is_superuser grants nothing}
+        mfa:
+          type: object
+          required: [required, enrolled]
+          properties: {required: {type: boolean}, enrolled: {type: boolean}}
+        session:
+          type: object
+          required: [access_expires_at, absolute_expires_at]
+          properties:
+            access_expires_at: {type: string, format: date-time}
+            absolute_expires_at: {type: string, format: date-time, description: End of the absolute session cap; never extended by refresh}
+  securitySchemes:
+    cookieAuth: {type: apiKey, in: cookie, name: <access cookie name; __Host- prefix in production>}
+```
+
