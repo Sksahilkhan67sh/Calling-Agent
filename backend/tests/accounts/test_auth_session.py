@@ -71,6 +71,21 @@ def test_refresh_rotates_both_cookies_and_keeps_the_session_alive(session, setti
     assert post(session, settings, REFRESH).status_code == 200  # and again: the chain continues
 
 
+def test_refresh_past_the_absolute_cap_is_the_uniform_401_even_for_an_active_session(session, settings):
+    twelve_hours, cap = 43200, settings.JWT_SESSION_ABSOLUTE_MAX_SECONDS
+    with freeze_time() as clock:  # frozen at "now": the session started a moment ago
+        for _ in range(cap // twelve_hours - 1):  # an active user refreshing twice a day stays logged in
+            clock.tick(twelve_hours)
+            assert post(session, settings, REFRESH).status_code == 200
+        clock.tick(twelve_hours - 5)  # five seconds inside the cap (login happened just before the freeze)
+        assert post(session, settings, REFRESH).status_code == 200
+        clock.tick(10)  # five seconds past the cap, with a perfectly valid refresh token in hand
+        response = post(session, settings, REFRESH)
+    assert response.status_code == 401 and cleared(response, settings)
+    assert response.json() == {"code": "invalid_credentials", "message": "Invalid credentials."}
+    assert AuditEvent.objects.filter(action=actions.AUTH_SESSION_EXPIRED).count() == 1
+
+
 def test_refresh_without_the_csrf_header_is_403_and_does_not_rotate(session, settings):
     refresh = cookie_value(session, settings.AUTH_REFRESH_COOKIE_NAME)
     response = session.post(REFRESH)  # a cross-site form post would look like this

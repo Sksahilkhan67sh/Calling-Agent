@@ -7,6 +7,7 @@ from .base import *  # noqa: F403
 from .base import (
     CACHE_REDIS_URL,
     DATABASES,
+    JWT_REFRESH_LIFETIME_SECONDS,
     JWT_SIGNING_KEY,
     MFA_REQUIRED_ROLES,
     SECRET_KEY,
@@ -44,6 +45,12 @@ for _name, _value in {
     reject_placeholder(_name, _value)
 if DATABASES["default"]["OPTIONS"].get("sslmode") not in {"require", "verify-ca", "verify-full"}:
     raise ConfigError("PRIMARY_DB_URL must set sslmode to require, verify-ca or verify-full")
+
+# The absolute session cap has no prod default and may not be shorter than one refresh token's life.
+SESSION_ABSOLUTE_MAX_DAYS = as_int("SESSION_ABSOLUTE_MAX_DAYS", minimum=1, maximum=90)
+JWT_SESSION_ABSOLUTE_MAX_SECONDS = SESSION_ABSOLUTE_MAX_DAYS * 86400
+if JWT_SESSION_ABSOLUTE_MAX_SECONDS < JWT_REFRESH_LIFETIME_SECONDS:
+    raise ConfigError("SESSION_ABSOLUTE_MAX_DAYS must not be shorter than JWT_REFRESH_LIFETIME_SECONDS")
 
 # Lockout and proxy trust have no safe default: a wrong value either locks nobody or trusts spoofed addresses.
 AXES_FAILURE_LIMIT = as_int("AXES_FAILURE_LIMIT", minimum=1)

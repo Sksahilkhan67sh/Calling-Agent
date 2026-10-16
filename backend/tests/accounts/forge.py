@@ -13,7 +13,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from django.conf import settings
 
-CLAIMS = ("token_type", "exp", "iat", "jti", "sub", "auth_epoch", "iss", "aud")
+CLAIMS = ("token_type", "exp", "iat", "jti", "sub", "auth_epoch", "iss", "aud", "sid", "sat")
 
 
 def payload(user, kind: str = "access", lifetime: int = 900, **override: Any) -> dict[str, Any]:
@@ -28,6 +28,8 @@ def payload(user, kind: str = "access", lifetime: int = 900, **override: Any) ->
         "iss": settings.JWT_ISSUER,
         "aud": settings.JWT_AUDIENCE,
         "roles": [],
+        "sid": uuid.uuid4().hex,
+        "sat": now,
     }
     data.update(override)
     return {k: v for k, v in data.items() if v is not ...}  # ``claim=...`` removes the claim
