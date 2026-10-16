@@ -154,7 +154,8 @@ def test_a_failed_authentication_never_logs_the_token(manager, settings, caplog)
 def test_unsafe_methods_need_the_csrf_token_under_cookie_auth(manager, settings):
     cookie, secret = good_cookie(manager), _get_new_csrf_string()
     no_header = browser(settings, cookie, secret).post("/whoami/")
-    assert no_header.status_code == 403 and "CSRF" in str(no_header.json())
+    assert no_header.status_code == 403
+    assert no_header.json() == {"code": "forbidden", "message": "The request was rejected."}  # no CSRF detail
     no_cookie = browser(settings, cookie).post("/whoami/", HTTP_X_CSRFTOKEN=secret)
     assert no_cookie.status_code == 403
     mismatch = browser(settings, cookie, secret).post("/whoami/", HTTP_X_CSRFTOKEN=_get_new_csrf_string())

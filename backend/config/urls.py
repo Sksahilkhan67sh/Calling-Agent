@@ -23,3 +23,9 @@ def build_urlpatterns(*, enable_api_docs: bool) -> list[URLPattern | URLResolver
 
 
 urlpatterns = build_urlpatterns(enable_api_docs=settings.ENABLE_API_DOCS)
+
+# Django-level errors (unrouted paths, bad hosts, unhandled 500s) use the same JSON shape as the API.
+handler400 = "apps.core.error_views.bad_request"
+handler403 = "apps.core.error_views.permission_denied"
+handler404 = "apps.core.error_views.not_found"
+handler500 = "apps.core.error_views.server_error"

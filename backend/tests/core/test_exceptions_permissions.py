@@ -19,7 +19,7 @@ class _Boom(APIView):
 def test_unhandled_error_returns_generic_500_without_internals(caplog):
     response = _Boom.as_view()(APIRequestFactory().get("/"))
     assert response.status_code == 500
-    assert response.data == {"detail": "Internal server error."}
+    assert response.data == {"code": "internal_error", "message": "Internal server error."}
     assert "hunter2" not in str(response.data)
 
 
@@ -35,7 +35,7 @@ def _authenticated_user():
 
 
 @pytest.mark.parametrize("debug", [True, False])
-def test_default_deny_message_only_in_debug(debug, settings):
+def test_default_deny_never_explains_itself_in_the_response(debug, settings, caplog):
     settings.DEBUG = debug
 
     class Undeclared(APIView):
@@ -43,9 +43,13 @@ def test_default_deny_message_only_in_debug(debug, settings):
 
     request = APIRequestFactory().get("/")
     force_authenticate(request, user=_authenticated_user())  # the 403 path: an authenticated caller
-    response = Undeclared.as_view()(request)
+    with caplog.at_level("WARNING", logger="apps.core.permissions"):
+        response = Undeclared.as_view()(request)
     assert response.status_code == 403
-    assert ("declares no permission_classes" in str(response.data["detail"])) is debug
+    assert response.data == {"code": "forbidden", "message": "The request was rejected."}
+    assert (
+        "declares no permission_classes" in caplog.text
+    ) is debug  # the developer hint goes to the log only
 
 
 @pytest.mark.parametrize("debug", [True, False])

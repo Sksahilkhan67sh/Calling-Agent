@@ -11,17 +11,6 @@ from django.db import transaction
 from django.middleware.csrf import get_token
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
-from rest_framework.exceptions import (
-    APIException,
-    AuthenticationFailed,
-    MethodNotAllowed,
-    NotAuthenticated,
-    ParseError,
-    PermissionDenied,
-    Throttled,
-    UnsupportedMediaType,
-    ValidationError,
-)
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -32,7 +21,7 @@ from apps.accounts.authentication import EnrollmentTokenAuthentication, enforce_
 from apps.accounts.cookies import clear_auth_cookies, no_store, rotate_csrf, set_auth_cookies
 from apps.accounts.login import check_credentials
 from apps.accounts.models import User
-from apps.accounts.parsers import BoundedJSONParser, PayloadTooLarge
+from apps.accounts.parsers import BoundedJSONParser
 from apps.accounts.permissions import IsEnrollmentCredential
 from apps.accounts.serializers import (
     AuthenticatedSerializer,
@@ -46,6 +35,7 @@ from apps.accounts.tokens import InvalidToken, TokenPair, issue_tokens, revoke_r
 from apps.audit import actions
 from apps.audit.models import Outcome
 from apps.audit.service import Actor, record
+from apps.core import error_codes
 from apps.core.permissions import PublicEndpoint
 from apps.core.throttles import LoginThrottle
 
@@ -53,23 +43,9 @@ _EMAIL_LIKE = re.compile(
     r"[^@\s]{1,64}@[^@\s]{1,255}"
 )  # only an email-shaped value is kept as an audit label
 
-# One generic message per status: nothing about the request or the account is ever echoed back.
-_ERRORS: dict[type[APIException], tuple[str, str]] = {
-    ValidationError: ("invalid_request", "Invalid request."),
-    ParseError: ("invalid_request", "Invalid request."),
-    AuthenticationFailed: ("invalid_credentials", "Invalid credentials."),
-    NotAuthenticated: ("invalid_credentials", "Invalid credentials."),
-    PermissionDenied: ("forbidden", "The request was rejected."),
-    Throttled: ("throttled", "Too many requests."),
-    PayloadTooLarge: ("payload_too_large", "Request body too large."),
-    UnsupportedMediaType: ("unsupported_media_type", "Content type must be application/json."),
-    MethodNotAllowed: ("method_not_allowed", "Method not allowed."),
-}
-_INVALID_CREDENTIALS = ("invalid_credentials", "Invalid credentials.")
 
-
-def error(code: str, message: str, http_status: int) -> Response:
-    return Response({"code": code, "message": message}, status=http_status)
+def error(api_error: error_codes.ApiError) -> Response:
+    return Response(api_error.body(), status=api_error.status)
 
 
 class AuthAPIView(APIView):
@@ -77,15 +53,6 @@ class AuthAPIView(APIView):
 
     parser_classes = [BoundedJSONParser]
     throttle_classes = [LoginThrottle]
-
-    def handle_exception(self, exc: Exception) -> Response:
-        response = super().handle_exception(exc)
-        if isinstance(exc, APIException):
-            code, message = next(
-                (v for k, v in _ERRORS.items() if isinstance(exc, k)), ("error", "Request failed.")
-            )
-            response.data = {"code": code, "message": message}  # keeps Retry-After / WWW-Authenticate headers
-        return response
 
     def finalize_response(self, request: Request, response: Response, *args: Any, **kwargs: Any) -> Response:
         return no_store(super().finalize_response(request, response, *args, **kwargs))  # type: ignore[return-value]
@@ -169,7 +136,7 @@ class LoginView(AuthAPIView):
                 user, reason = None, "mfa_invalid"
         if user is None:
             _login_failed(email, reason, check.target)
-            return error(*_INVALID_CREDENTIALS, http_status=status.HTTP_401_UNAUTHORIZED)
+            return error(error_codes.INVALID_CREDENTIALS)
         return _start_session(request, user, mfa_used=mfa_used)
 
     @staticmethod
@@ -233,7 +200,7 @@ class RefreshView(AuthAPIView):
 
     @staticmethod
     def _rejected() -> Response:
-        response = error(*_INVALID_CREDENTIALS, http_status=status.HTTP_401_UNAUTHORIZED)
+        response = error(error_codes.INVALID_CREDENTIALS)
         clear_auth_cookies(response)
         return response
 
@@ -315,7 +282,7 @@ class MfaEnrollView(_EnrolmentView):
         try:
             enrollment = mfa.begin_enrollment(cast(User, request.user))
         except mfa.MfaError:
-            return error("enrollment_unavailable", "Enrolment is not available.", status.HTTP_409_CONFLICT)
+            return error(error_codes.ENROLLMENT_UNAVAILABLE)
         return Response(
             {
                 "secret": enrollment.secret,
@@ -346,7 +313,7 @@ class MfaConfirmView(_EnrolmentView):
         try:
             mfa.confirm_enrollment(user, serializer.validated_data["code"])
         except mfa.NoPendingEnrollment:
-            return error("no_enrollment", "No enrolment is in progress.", status.HTTP_409_CONFLICT)
+            return error(error_codes.NO_ENROLLMENT)
         except mfa.InvalidCode:
-            return error("invalid_code", "The code is not valid.", status.HTTP_400_BAD_REQUEST)
+            return error(error_codes.INVALID_CODE)
         return _start_session(request, User.objects.get(pk=user.pk), mfa_used=True)  # epoch moved: reload
