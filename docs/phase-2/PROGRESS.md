@@ -31,7 +31,7 @@
 | P2-20 | Security self-review | TODO | - | - | deps: P2-19 |
 | P2-21 | Full verification pass | TODO | - | - | deps: P2-20 |
 | P2-22 | Phase 3 handoff | TODO | - | - | deps: P2-21 |
-| P2-23 | Closeout and checkpoint | TODO | - | - | deps: P2-22 |
+| P2-23 | Closeout and checkpoint | TODO | - | - | deps: P2-22; MUST: merge origin/main, keep Django 5.2.x, recompile hashed locks, re-check bumps (DECISIONS.md 'Dependency policy') |
 
 ## Inputs recorded
 REPO_URL, BASE_BRANCH=main, DOCS_PATH=`ai_calling agent/`, PYTHON=3.12, COVERAGE_MIN=90, COOKIE_SAMESITE=Lax, TRUSTED_PROXY_COUNT=1, PUSH=no.
