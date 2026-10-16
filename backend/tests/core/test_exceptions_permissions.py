@@ -1,7 +1,7 @@
 import pytest
 from rest_framework.exceptions import NotFound
 from rest_framework.permissions import AllowAny
-from rest_framework.test import APIRequestFactory
+from rest_framework.test import APIRequestFactory, force_authenticate
 from rest_framework.views import APIView
 
 from apps.core.exceptions import safe_exception_handler
@@ -19,7 +19,7 @@ class _Boom(APIView):
 def test_unhandled_error_returns_generic_500_without_internals(caplog):
     response = _Boom.as_view()(APIRequestFactory().get("/"))
     assert response.status_code == 500
-    assert response.data == {"detail": "Internal server error."}
+    assert response.data == {"code": "internal_error", "message": "Internal server error."}
     assert "hunter2" not in str(response.data)
 
 
@@ -28,13 +28,36 @@ def test_drf_errors_keep_their_response():
     assert response is not None and response.status_code == 404
 
 
+def _authenticated_user():
+    from apps.accounts.models import User
+
+    return User(email="caller@example.com")  # unsaved: authentication is forced, no database is touched
+
+
 @pytest.mark.parametrize("debug", [True, False])
-def test_default_deny_message_only_in_debug(debug, settings):
+def test_default_deny_never_explains_itself_in_the_response(debug, settings, caplog):
+    settings.DEBUG = debug
+
+    class Undeclared(APIView):
+        throttle_classes: list = []
+
+    request = APIRequestFactory().get("/")
+    force_authenticate(request, user=_authenticated_user())  # the 403 path: an authenticated caller
+    with caplog.at_level("WARNING", logger="apps.core.permissions"):
+        response = Undeclared.as_view()(request)
+    assert response.status_code == 403
+    assert response.data == {"code": "forbidden", "message": "The request was rejected."}
+    assert (
+        "declares no permission_classes" in caplog.text
+    ) is debug  # the developer hint goes to the log only
+
+
+@pytest.mark.parametrize("debug", [True, False])
+def test_default_deny_for_anonymous_callers_is_401_and_never_explains_itself(debug, settings):
     settings.DEBUG = debug
 
     class Undeclared(APIView):
         throttle_classes: list = []
 
     response = Undeclared.as_view()(APIRequestFactory().get("/"))
-    assert response.status_code == 403
-    assert ("declares no permission_classes" in str(response.data["detail"])) is debug
+    assert response.status_code == 401 and "declares no permission_classes" not in str(response.data)

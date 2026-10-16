@@ -1,12 +1,14 @@
 """Production posture (Django-Backend-Design §4.4). Fails to start on unsafe or missing values."""
 
-from apps.core.settings_utils import ConfigError, as_int, reject_placeholder
+from apps.accounts.roles import MFA_MANDATORY_ROLES
+from apps.core.settings_utils import ConfigError, as_int, as_origins, reject_placeholder
 
 from .base import *  # noqa: F403
 from .base import (
     CACHE_REDIS_URL,
     DATABASES,
     JWT_SIGNING_KEY,
+    MFA_REQUIRED_ROLES,
     SECRET_KEY,
 )
 
@@ -16,8 +18,10 @@ ENABLE_API_DOCS = False
 # Rates must be set deliberately from load-test results (Environment-Config §4).
 API_RATE_LIMIT_PER_MINUTE = as_int("API_RATE_LIMIT_PER_MINUTE", minimum=1)
 WEBHOOK_RATE_LIMIT_PER_MINUTE = as_int("WEBHOOK_RATE_LIMIT_PER_MINUTE", minimum=1)
+LOGIN_RATE_LIMIT_PER_MINUTE = as_int("LOGIN_RATE_LIMIT_PER_MINUTE", minimum=1)
 REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"].update(  # noqa: F405
     {
+        "login": f"{LOGIN_RATE_LIMIT_PER_MINUTE}/min",
         "api-user": f"{API_RATE_LIMIT_PER_MINUTE}/min",
         "api-client": f"{API_RATE_LIMIT_PER_MINUTE}/min",
         "webhook": f"{WEBHOOK_RATE_LIMIT_PER_MINUTE}/min",
@@ -28,8 +32,8 @@ if len(SECRET_KEY) < 50:
     raise ConfigError("DJANGO_SECRET_KEY must be at least 50 characters")
 if JWT_SIGNING_KEY == SECRET_KEY:
     raise ConfigError("JWT_SIGNING_KEY must differ from DJANGO_SECRET_KEY")
-if len(JWT_SIGNING_KEY) < 32:
-    raise ConfigError("JWT_SIGNING_KEY must be at least 32 characters")
+if len(JWT_SIGNING_KEY) < 50:
+    raise ConfigError("JWT_SIGNING_KEY must be at least 50 characters")
 for _name, _value in {
     "DJANGO_SECRET_KEY": SECRET_KEY,
     "JWT_SIGNING_KEY": JWT_SIGNING_KEY,
@@ -40,6 +44,18 @@ for _name, _value in {
     reject_placeholder(_name, _value)
 if DATABASES["default"]["OPTIONS"].get("sslmode") not in {"require", "verify-ca", "verify-full"}:
     raise ConfigError("PRIMARY_DB_URL must set sslmode to require, verify-ca or verify-full")
+
+# Lockout and proxy trust have no safe default: a wrong value either locks nobody or trusts spoofed addresses.
+AXES_FAILURE_LIMIT = as_int("AXES_FAILURE_LIMIT", minimum=1)
+TRUSTED_PROXY_COUNT = as_int("TRUSTED_PROXY_COUNT", minimum=0, maximum=10)
+
+# Cookie auth means credentialed CORS: only for an explicit, HTTPS-only origin list.
+CORS_ALLOWED_ORIGINS = as_origins("CORS_ALLOWED_ORIGINS")
+CSRF_TRUSTED_ORIGINS = as_origins("CSRF_TRUSTED_ORIGINS")
+if not all(origin.startswith("https://") for origin in CORS_ALLOWED_ORIGINS + CSRF_TRUSTED_ORIGINS):
+    raise ConfigError("CORS_ALLOWED_ORIGINS and CSRF_TRUSTED_ORIGINS must use https://")
+if not set(MFA_MANDATORY_ROLES) <= set(MFA_REQUIRED_ROLES):
+    raise ConfigError("MFA_REQUIRED_ROLES must include Admin and Campaign Manager in production")
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_SSL_REDIRECT = True

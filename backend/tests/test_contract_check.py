@@ -68,3 +68,41 @@ def test_internal_paths_ignored_and_refs_resolved():
     impl = _doc({"/a": {"get": op([p("page")])}, "/healthz": {"get": op()}})
     report = compare(spec, impl)
     assert report.drift == [] and report.internal == ["GET /healthz"]
+
+
+def test_documented_proposed_additions_are_informational():
+    impl = _doc(
+        {
+            "/auth/csrf": {"get": op(codes=("204",))},
+            "/auth/mfa/enroll": {"post": op()},
+            "/auth/mfa/confirm": {"post": op()},
+        }
+    )
+    report = compare(_doc({}), impl)
+    assert report.exit_code == 0 and report.drift == []
+    assert report.proposed_additions == [
+        "GET /auth/csrf",
+        "POST /auth/mfa/confirm",
+        "POST /auth/mfa/enroll",
+    ]
+
+
+def test_undocumented_auth_path_next_to_proposed_additions_still_fails():
+    impl = _doc({"/auth/csrf": {"get": op()}, "/auth/backdoor": {"post": op()}})
+    report = compare(_doc({}), impl)
+    assert report.exit_code == 1
+    assert report.drift == ["POST /auth/backdoor: implemented but not defined in the contract"]
+    assert report.proposed_additions == ["GET /auth/csrf"]
+
+
+def test_proposed_addition_wrong_method_still_fails():
+    report = compare(_doc({}), _doc({"/auth/csrf": {"post": op()}}))
+    assert report.exit_code == 1 and report.proposed_additions == []
+
+
+def test_once_the_contract_defines_a_proposed_addition_it_is_compared_normally():
+    spec = _doc({"/auth/csrf": {"get": op(codes=("204",))}})
+    impl = _doc({"/auth/csrf": {"get": op(codes=("200",))}})
+    report = compare(spec, impl)
+    assert report.proposed_additions == []
+    assert any("response codes missing" in d for d in report.drift)

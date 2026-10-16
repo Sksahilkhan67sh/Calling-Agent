@@ -143,9 +143,11 @@ def test_regex_performance_no_catastrophic_backtracking():
         "http://" + "a" * 100_000,
     ]
     for text in hostile:
-        start = time.perf_counter()
+        # CPU time, not wall clock: catastrophic backtracking burns CPU for seconds to minutes, whereas a
+        # busy machine only delays the wall clock (this assertion flaked under CPU contention).
+        start = time.process_time()
         lg.redact_text(text)
-        assert time.perf_counter() - start < 2.0, text[:30]
+        assert time.process_time() - start < 2.0, text[:30]
 
 
 def test_filter_handles_bad_format_args():
@@ -167,6 +169,15 @@ def test_context_binding_and_restore(log_capture):
     assert "request_id" not in second
     assert {"timestamp", "level", "logger", "message"} <= first.keys()
     assert first["timestamp"].endswith("+00:00")
+
+
+def test_user_id_is_a_context_field_and_appears_in_log_lines(log_capture):
+    log = logging.getLogger("ctx")
+    with lg.context(request_id="req-12345678", user_id="3f2c0a54-0000-4000-8000-000000000001"):
+        log.info("inside")
+    line = json.loads(log_capture.getvalue().strip())
+    assert line["user_id"] == "3f2c0a54-0000-4000-8000-000000000001"
+    assert "user_id" not in lg.get_context()
 
 
 def test_bind_rejects_unknown_and_skips_none_and_truncates():

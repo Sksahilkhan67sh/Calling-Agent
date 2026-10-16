@@ -24,3 +24,6 @@ PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]  # speed on
 CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
 DATABASES["default"]["OPTIONS"].pop("pool", None)  # noqa: F405
 CELERY_TASK_ALWAYS_EAGER = False
+
+# Test-only app with a scoped model and views (never installed by dev/staging/prod).
+INSTALLED_APPS = [*INSTALLED_APPS, "tests.testapp"]  # noqa: F405

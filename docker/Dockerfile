@@ -1,13 +1,13 @@
 # syntax=docker/dockerfile:1
 # Base image is pinned to a minor line, never `latest`. Pin by digest in your registry policy.
-FROM python:3.14-slim-bookworm AS builder
+FROM python:3.12-slim-bookworm AS builder
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1 PIP_NO_CACHE_DIR=1
 RUN python -m venv /opt/venv
 COPY backend/requirements/prod.txt /tmp/prod.txt
 # Hash-enforced install; all dependencies ship wheels, so no compiler is needed.
 RUN /opt/venv/bin/pip install --require-hashes --only-binary=:all: -r /tmp/prod.txt
 
-FROM python:3.14-slim-bookworm
+FROM python:3.12-slim-bookworm
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH="/opt/venv/bin:$PATH" \
