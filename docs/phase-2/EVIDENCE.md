@@ -175,3 +175,7 @@ Environment note: the sandbox PostgreSQL/Redis stopped between tool calls once; 
 - Mutations (applied, baseline restored and re-verified at 125 passed before counting): CSRF not enforced -> 8 failed; caller ownership ignored -> 2 failed; audit on every call -> 15 failed (noisy: `if True` also crashes on a missing result, so a weaker signal than the others); reuse path disabled -> 4 failed; stale-epoch check removed -> 2 failed.
 - Authoring note: one test used an unfiltered `AuditEvent.objects.get()` and tripped over the `rbac.sync` event created by test setup; it now filters by action.
 
+## Step 1 after merging the updated root (a2ec412 + contract fix)
+- `pip install --require-hashes -r requirements/dev.txt` (merged locks): Django 5.2.17, cryptography 50.0.2, mypy 2.4.0, librt 0.16.0. `pytest -q --cov`: 996 passed, 100% (1944 stmts, 0 missed); ruff, format, mypy clean; `check --deploy --fail-level WARNING` exit 0 for prod and staging; `bandit -ll` exit 0; `pip-audit` no known vulnerabilities; `makemigrations --check`: no changes; contract script `RESULT: OK` with 4 proposed additions (`/auth/csrf`, `/auth/me`, `/auth/mfa/enroll`, `/auth/mfa/confirm`).
+- PR #9 first reported `mergeable: dirty` because the root had moved; fixed by the merge above.
+
