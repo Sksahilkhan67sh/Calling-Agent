@@ -202,23 +202,10 @@ def test_the_old_refresh_token_is_dead_after_logout(session, settings):
     )  # logout-then-reuse is detected too
 
 
-def test_logout_requires_authentication_and_csrf(session, settings):
-    assert browser().post(LOGOUT).status_code == 401
-    assert session.post(LOGOUT).status_code == 403  # authenticated, but no CSRF header
+def test_logout_needs_the_csrf_header_whenever_a_cookie_is_present(session, settings):
+    assert session.post(LOGOUT).status_code == 403  # credentials present, but no CSRF header
     assert not BlacklistedToken.objects.exists()
     assert post(session, settings, LOGOUT).status_code == 204
-
-
-def test_repeated_logout_with_a_still_valid_access_token_is_204(manager, settings):
-    pair = tokens.issue_tokens(manager)
-    for _ in range(3):  # a client that still holds the (not yet expired) credentials repeats the call
-        client = browser()
-        client.cookies[settings.AUTH_ACCESS_COOKIE_NAME] = pair.access
-        client.cookies[settings.AUTH_REFRESH_COOKIE_NAME] = pair.refresh
-        client.cookies[settings.CSRF_COOKIE_NAME] = "c" * 32
-        assert client.post(LOGOUT, HTTP_X_CSRFTOKEN="c" * 32).status_code == 204
-    assert BlacklistedToken.objects.count() == 1  # blacklisted once; repeated calls change nothing
-    assert AuditEvent.objects.filter(action=actions.AUTH_LOGOUT).count() == 3  # every call is on record
 
 
 def test_logout_with_a_garbage_refresh_cookie_still_succeeds(manager, settings):

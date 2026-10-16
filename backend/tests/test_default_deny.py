@@ -30,7 +30,10 @@ REVIEWED_EXCEPTIONS = {
         "GET /auth/me is identity-only: any authenticated human reads their own profile, so no capability "
         "is required; API clients and the restricted enrolment credential are refused by IsHumanSession."
     ),
-    "LogoutView": "POST /auth/logout is open to any authenticated caller and acts only on its own session.",
+    "LogoutView": (
+        "POST /auth/logout is open to any caller and idempotent: it authenticates itself (access or refresh "
+        "cookie), enforces CSRF when a cookie is present and only ever ends the caller's own session."
+    ),
     "MfaEnrollView": "POST /auth/mfa/enroll accepts only the restricted MFA enrolment credential.",
     "MfaConfirmView": "POST /auth/mfa/confirm accepts only the restricted MFA enrolment credential.",
     "EnrollProbe": "Test-only stand-in for the MFA enrolment endpoints (restricted credential only).",

@@ -281,29 +281,62 @@ def test_the_revocation_survives_the_failed_request(user):
 
 def test_logout_then_reuse_of_the_refresh_token_is_detected(user):
     pair = tokens.issue_tokens(user)
-    assert tokens.revoke_refresh(pair.refresh) is True
+    assert tokens.revoke_session(pair.refresh).outcome is tokens.Revocation.REVOKED
     with pytest.raises(tokens.RefreshReuseDetected):
         tokens.rotate_tokens(pair.refresh)
     assert User.objects.get(pk=user.pk).auth_epoch == 1
 
 
-def test_revoking_twice_or_revoking_garbage_is_silent_and_idempotent(user):
+def test_revoking_garbage_changes_nothing(user):
     pair = tokens.issue_tokens(user)
-    assert tokens.revoke_refresh(pair.refresh) is True
-    assert tokens.revoke_refresh(pair.refresh) is True
     for junk in ("", "garbage", pair.access, forge.unsigned(forge.payload(user, "refresh"))):
-        assert tokens.revoke_refresh(junk) is False
-    assert User.objects.get(pk=user.pk).auth_epoch == 0 and BlacklistedToken.objects.count() == 1
+        assert tokens.revoke_session(junk).outcome is tokens.Revocation.NOTHING
+    assert User.objects.get(pk=user.pk).auth_epoch == 0 and not BlacklistedToken.objects.exists()
+
+
+def test_revoking_a_blacklisted_token_again_is_treated_as_theft_like_on_refresh(user):
+    pair = tokens.issue_tokens(user)
+    assert tokens.revoke_session(pair.refresh).outcome is tokens.Revocation.REVOKED
+    again = tokens.revoke_session(pair.refresh)
+    assert again.outcome is tokens.Revocation.REUSE_DETECTED and again.user == user
+    assert User.objects.get(pk=user.pk).auth_epoch == 1  # every session of the owner is revoked
+    assert BlacklistedToken.objects.count() == 1
+
+
+def test_a_rotated_token_replayed_on_logout_is_theft(user):
+    first = tokens.issue_tokens(user)
+    tokens.rotate_tokens(first.refresh)
+    assert tokens.revoke_session(first.refresh).outcome is tokens.Revocation.REUSE_DETECTED
+    assert User.objects.get(pk=user.pk).auth_epoch == 1
 
 
 def test_revoking_a_signed_token_we_never_issued_changes_nothing(user):
     never_issued = forge.sign(forge.payload(user, "refresh", lifetime=3600))
-    assert tokens.revoke_refresh(never_issued) is False and not BlacklistedToken.objects.exists()
+    assert tokens.revoke_session(never_issued).outcome is tokens.Revocation.NOTHING
+    assert not BlacklistedToken.objects.exists()
+
+
+def test_a_token_of_an_old_epoch_or_an_inactive_user_is_already_dead_and_untouched(user):
+    stale, inactive = tokens.issue_tokens(user), None
+    user.bump_auth_epoch()
+    assert tokens.revoke_session(stale.refresh).outcome is tokens.Revocation.NOTHING
+    inactive = tokens.issue_tokens(User.objects.get(pk=user.pk))
+    User.objects.filter(pk=user.pk).update(is_active=False)
+    assert tokens.revoke_session(inactive.refresh).outcome is tokens.Revocation.NOTHING
+    assert not BlacklistedToken.objects.exists() and User.objects.get(pk=user.pk).auth_epoch == 1
+
+
+def test_a_caller_cannot_revoke_a_token_that_is_not_theirs(user, make_user):
+    other = make_user(ROLE_CAMPAIGN_MANAGER)
+    theirs = tokens.issue_tokens(other)
+    assert tokens.revoke_session(theirs.refresh, caller_id=user.pk).outcome is tokens.Revocation.NOTHING
+    assert not BlacklistedToken.objects.exists()
+    assert tokens.revoke_session(theirs.refresh, caller_id=other.pk).outcome is tokens.Revocation.REVOKED
 
 
 def test_revoke_does_not_touch_other_sessions(user):
     keep, drop = tokens.issue_tokens(user), tokens.issue_tokens(user)
-    tokens.revoke_refresh(drop.refresh)
+    tokens.revoke_session(drop.refresh)
     assert tokens.read_access(keep.access)[0] == user
     tokens.rotate_tokens(keep.refresh)
 
@@ -355,7 +388,7 @@ def test_reuse_by_a_user_deleted_meanwhile_does_not_crash(user):
 def test_housekeeping_command_removes_expired_rows_and_keeps_live_ones(user):
     with freeze_time("2026-10-11 12:00:00") as clock:
         old = tokens.issue_tokens(user)
-        tokens.revoke_refresh(old.refresh)
+        tokens.revoke_session(old.refresh)
         clock.tick(86400 + 60)
         fresh = tokens.issue_tokens(user)
         call_command("flushexpiredtokens")

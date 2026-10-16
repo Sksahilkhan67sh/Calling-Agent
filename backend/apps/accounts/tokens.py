@@ -16,6 +16,7 @@ Built on SimpleJWT's token classes and blacklist tables, but this module owns pa
 
 from __future__ import annotations
 
+import enum
 import hashlib
 import logging
 import time
@@ -225,19 +226,42 @@ def _handle_reuse(user: User, jti: str) -> None:
     )
 
 
-def revoke_refresh(raw: str, *, user_id: uuid.UUID | None = None) -> bool:
-    """Blacklist a refresh token (logout). Idempotent; never reveals whether the token was valid.
+class Revocation(enum.Enum):
+    REVOKED = "revoked"  # a live session was ended just now
+    NOTHING = "nothing"  # invalid, expired, foreign, stale or unknown: nothing changed
+    REUSE_DETECTED = "reuse_detected"  # a blacklisted token was presented again; every session was revoked
 
-    With ``user_id``, a token that belongs to someone else is left alone."""
+
+@dataclass(frozen=True)
+class RevokeResult:
+    outcome: Revocation
+    user: User | None = None
+
+
+def revoke_session(raw: str, *, caller_id: uuid.UUID | None = None) -> RevokeResult:
+    """Logout: end the session a refresh token belongs to. Idempotent and never says why it did nothing.
+
+    With ``caller_id`` (the caller proved who they are another way) a token of someone else is left alone.
+    A token of an old epoch or an expired session is already dead and is not touched. A token that is
+    already blacklisted (rotated or logged out) is treated exactly as on refresh: theft, so every session
+    of its owner is revoked. The caller writes the audit event in the same transaction on ``REVOKED``.
+    """
+    nothing = RevokeResult(Revocation.NOTHING)
     try:
         claims = _decode(raw, REFRESH)
     except InvalidToken:
-        return False
-    if user_id is not None and claims.user_id != user_id:
-        return False
+        return nothing
+    if (caller_id is not None and claims.user_id != caller_id) or claims.session_expired():
+        return nothing
     with transaction.atomic():
-        outstanding = OutstandingToken.objects.select_for_update().filter(jti=claims.jti).first()
-        if outstanding is None or outstanding.user_id != claims.user_id:
-            return False
-        BlacklistedToken.objects.get_or_create(token=outstanding)
-    return True
+        outstanding = OutstandingToken.objects.select_for_update(of=("self",)).filter(jti=claims.jti).first()
+        user = User.objects.filter(pk=claims.user_id, is_active=True).first()
+        if outstanding is None or outstanding.user_id != claims.user_id or user is None:
+            return nothing
+        if user.auth_epoch != claims.epoch:
+            return nothing
+        _, created = BlacklistedToken.objects.get_or_create(token=outstanding)
+    if created:
+        return RevokeResult(Revocation.REVOKED, user)
+    _handle_reuse(user, claims.jti)
+    return RevokeResult(Revocation.REUSE_DETECTED, user)

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import logging
 import re
+import uuid
 from datetime import UTC, datetime
 from typing import Any, cast
 
@@ -13,7 +14,6 @@ from django.db import transaction
 from django.middleware.csrf import get_token
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -39,7 +39,15 @@ from apps.accounts.serializers import (
     RefreshBodySerializer,
     TokenRequestSerializer,
 )
-from apps.accounts.tokens import InvalidToken, TokenPair, issue_tokens, revoke_refresh, rotate_tokens
+from apps.accounts.tokens import (
+    InvalidToken,
+    Revocation,
+    TokenPair,
+    issue_tokens,
+    read_access,
+    revoke_session,
+    rotate_tokens,
+)
 from apps.audit import actions
 from apps.audit.models import Outcome
 from apps.audit.service import Actor, record
@@ -216,38 +224,64 @@ class RefreshView(AuthAPIView):
 
 
 class LogoutView(AuthAPIView):
-    """POST /auth/logout: blacklist the caller's refresh token, clear cookies. Idempotent."""
+    """POST /auth/logout: end the caller's session and clear the cookies. Always 204 once CSRF passes.
 
+    The caller is identified by the access credential, or by the refresh cookie alone when the access
+    cookie is missing or expired. CSRF is enforced whenever any auth cookie is present, before any token is
+    read. Only a session that was really ended is audited; everything else is a silent no-op, so the
+    response never reveals whether a credential was valid.
+    """
+
+    authentication_classes: list[Any] = []  # credentials are read below; a stale access cookie must not 401
+    permission_classes = [PublicEndpoint]
     throttle_classes = list(APIView.throttle_classes)  # the default per-user throttle, not the login scope
-    permission_classes = [IsAuthenticated]
 
     @extend_schema(
         tags=["Auth"],
         summary="Blacklist the refresh token and clear cookies",
         request=RefreshBodySerializer,
         responses={
-            204: OpenApiResponse(description="Logged out"),
-            401: OpenApiResponse(ErrorSerializer, description="Not authenticated"),
+            204: OpenApiResponse(description="Logged out (also when there was nothing to log out)"),
+            403: OpenApiResponse(ErrorSerializer, description="CSRF check failed"),
         },
     )
     def post(self, request: Request) -> Response:
         body = RefreshBodySerializer(data=request.data if request.data else {})
         body.is_valid(raise_exception=True)
-        raw = request.COOKIES.get(settings.AUTH_REFRESH_COOKIE_NAME)
-        if not raw and settings.AUTH_TOKENS_IN_BODY:
-            raw = body.validated_data.get("refresh")
-        with transaction.atomic():
-            if raw:
-                revoke_refresh(raw, user_id=cast(User, request.user).pk)  # only the caller's own token
-            record(
-                action=actions.AUTH_LOGOUT,
-                actor=Actor.user(request.user),
-                object_type="user",
-                object_id=request.user.pk,
-            )
+        access_cookie = request.COOKIES.get(settings.AUTH_ACCESS_COOKIE_NAME)
+        refresh_raw = request.COOKIES.get(settings.AUTH_REFRESH_COOKIE_NAME)
+        if access_cookie or refresh_raw:
+            enforce_csrf(request)  # ambient credentials: a cross-site request must not end a session
+        if not refresh_raw and settings.AUTH_TOKENS_IN_BODY:
+            refresh_raw = body.validated_data.get("refresh")
+        caller = self._caller(request, access_cookie)
+        with transaction.atomic():  # blacklist and audit together: no audit, no logout (fail closed)
+            result = revoke_session(refresh_raw, caller_id=caller) if refresh_raw else None
+            if result is not None and result.outcome is Revocation.REVOKED:
+                record(
+                    action=actions.AUTH_LOGOUT,
+                    actor=Actor.user(cast(User, result.user)),
+                    object_type="user",
+                    object_id=cast(User, result.user).pk,
+                    metadata={"identified_by": "access" if caller else "refresh"},
+                )
         response = Response(status=status.HTTP_204_NO_CONTENT)
         clear_auth_cookies(response)
         return response
+
+    @staticmethod
+    def _caller(request: Request, access_cookie: str | None) -> uuid.UUID | None:
+        """The user the access credential proves, or None (missing, expired and invalid look the same)."""
+        raw = access_cookie
+        if settings.AUTH_TOKENS_IN_BODY:
+            scheme, _, token = request.META.get("HTTP_AUTHORIZATION", "").partition(" ")
+            raw = token.strip() if scheme.lower() == "bearer" else raw
+        if not raw:
+            return None
+        try:
+            return read_access(raw)[0].pk
+        except InvalidToken:
+            return None
 
 
 class CsrfView(AuthAPIView):
