@@ -1,37 +1,37 @@
 # Phase 2 progress
 
-| ID | Task | Status | Evidence | Commit | Notes |
-|---|---|---|---|---|---|
-| P2-00 | Recon and scaffolding | DONE | EVIDENCE P2-00 | e22ab28 | deps: - |
-| P2-01 | Dependencies (simplejwt, axes, pyotp) | DONE | EVIDENCE P2-01 | 241630d | deps: P2-00 |
-| P2-02 | Settings and environment | DONE | EVIDENCE P2-02 | c4a65ef | deps: P2-01 |
-| P2-03 | User model extension | DONE | EVIDENCE P2-03 | 2f10629 | deps: P2-02 |
-| P2-04 | Roles, capabilities, RBAC matrix | DONE | EVIDENCE P2-04, P2-06 | 21b8d66, f023985 | deps: P2-03 |
-| P2-05 | Permission classes and object scoping | DONE | EVIDENCE P2-05 | dce4947 | deps: P2-04 |
-| P2-06 | audit app (append-only) | DONE | EVIDENCE P2-06 | f023985 | deps: P2-03 |
-| P2-07 | MFA (TOTP) with encrypted seeds | DONE | EVIDENCE P2-07 | bb05736 | deps: P2-03, P2-06 |
-| P2-08 | Cookie JWT authentication | DONE | EVIDENCE P2-08 | b488051 | deps: P2-03, P2-05 |
-| P2-09 | Auth endpoints | DONE | EVIDENCE P2-09, R1 | aa2bae0, 6d32d34 | deps: P2-07, P2-08 |
-| R1 | State verification and baseline | DONE | EVIDENCE R1 | 6d32d34 | found P2-09 regression (deploy check), fixed |
-| R2 | Global error handler aligned to contract (OQ2-20) | DONE | EVIDENCE R2 | see log | 897 tests, 100% cov |
-| R3 | GET /auth/me (OQ2-21) | TODO | - | - | deps: R2, R6 |
-| R4 | Logout via refresh cookie + CSRF (OQ2-22) | TODO | - | - | deps: R2 |
-| R5 | Out-of-band MFA enrollment code (OQ2-19) | TODO | - | - | deps: R2 |
-| R6 | Absolute session lifetime cap (OQ2-01) | TODO | - | - | deps: R2 |
-| P2-10 | Lockout, client IP, throttling | TODO | - | - | deps: P2-09 |
-| P2-11 | Session revocation semantics | TODO | - | - | deps: P2-09 |
-| P2-12 | Machine clients (api_client) | TODO | - | - | deps: P2-05, P2-06 |
-| P2-13 | Management commands | TODO | - | - | deps: P2-04, P2-06, P2-07, P2-12 |
-| P2-14 | OpenAPI and contract check | TODO | - | - | deps: P2-09 |
-| P2-15 | Attack-oriented security test suite | TODO | - | - | deps: P2-09..P2-12 |
-| P2-16 | Logging and redaction verification | TODO | - | - | deps: P2-09, P2-12 |
-| P2-17 | Database roles and privileges | TODO | - | - | deps: P2-06 |
-| P2-18 | CI updates | TODO | - | - | deps: P2-15, P2-17 |
-| P2-19 | Documentation | TODO | - | - | deps: P2-15 |
-| P2-20 | Security self-review | TODO | - | - | deps: P2-19 |
-| P2-21 | Full verification pass | TODO | - | - | deps: P2-20 |
-| P2-22 | Phase 3 handoff | TODO | - | - | deps: P2-21 |
-| P2-23 | Closeout and checkpoint | TODO | - | - | deps: P2-22; MUST: merge origin/main, keep Django 5.2.x, recompile hashed locks, re-check bumps (DECISIONS.md 'Dependency policy') |
+| ID | Task | Status | Evidence | Commit | Branch/PR | Notes |
+|---|---|---|---|---|---|---|
+| P2-00 | Recon and scaffolding | DONE | EVIDENCE P2-00 | e22ab28 | root | deps: - |
+| P2-01 | Dependencies (simplejwt, axes, pyotp) | DONE | EVIDENCE P2-01 | 241630d | root | deps: P2-00 |
+| P2-02 | Settings and environment | DONE | EVIDENCE P2-02 | c4a65ef | root | deps: P2-01 |
+| P2-03 | User model extension | DONE | EVIDENCE P2-03 | 2f10629 | root | deps: P2-02 |
+| P2-04 | Roles, capabilities, RBAC matrix | DONE | EVIDENCE P2-04, P2-06 | 21b8d66, f023985 | root | deps: P2-03 |
+| P2-05 | Permission classes and object scoping | DONE | EVIDENCE P2-05 | dce4947 | root | deps: P2-04 |
+| P2-06 | audit app (append-only) | DONE | EVIDENCE P2-06 | f023985 | root | deps: P2-03 |
+| P2-07 | MFA (TOTP) with encrypted seeds | DONE | EVIDENCE P2-07 | bb05736 | root | deps: P2-03, P2-06 |
+| P2-08 | Cookie JWT authentication | DONE | EVIDENCE P2-08 | b488051 | root | deps: P2-03, P2-05 |
+| P2-09 | Auth endpoints | DONE | EVIDENCE P2-09, R1 | aa2bae0, 6d32d34 | root | deps: P2-07, P2-08 |
+| R1 | State verification and baseline | DONE | EVIDENCE R1 | 6d32d34 | root | found P2-09 regression (deploy check), fixed |
+| R2 | Global error handler aligned to contract (OQ2-20) | DONE | EVIDENCE R2 | see log | root | 897 tests, 100% cov |
+| R3 | GET /auth/me (OQ2-21) | TODO | - | - | s1 | deps: R2, R6 |
+| R4 | Logout via refresh cookie + CSRF (OQ2-22) | TODO | - | - | s1 | deps: R2 |
+| R5 | Out-of-band MFA enrollment code (OQ2-19) | TODO | - | - | s2 | deps: R2 |
+| R6 | Absolute session lifetime cap (OQ2-01) | DONE | EVIDENCE R6 | see log | s1 | deps: R2 |
+| P2-10 | Lockout, client IP, throttling | TODO | - | - | s3 | deps: P2-09 |
+| P2-11 | Session revocation semantics | TODO | - | - | s3 | deps: P2-09 |
+| P2-12 | Machine clients (api_client) | TODO | - | - | s4 | deps: P2-05, P2-06 |
+| P2-13 | Management commands | TODO | - | - | s4 | deps: P2-04, P2-06, P2-07, P2-12 |
+| P2-14 | OpenAPI and contract check | TODO | - | - | s5 | deps: P2-09 |
+| P2-15 | Attack-oriented security test suite | TODO | - | - | s5 | deps: P2-09..P2-12 |
+| P2-16 | Logging and redaction verification | TODO | - | - | s5 | deps: P2-09, P2-12 |
+| P2-17 | Database roles and privileges | TODO | - | - | s6 | deps: P2-06 |
+| P2-18 | CI updates | TODO | - | - | s6 | deps: P2-15, P2-17 |
+| P2-19 | Documentation | TODO | - | - | out of scope this run | deps: P2-15 |
+| P2-20 | Security self-review | TODO | - | - | out of scope this run | deps: P2-19 |
+| P2-21 | Full verification pass | TODO | - | - | out of scope this run | deps: P2-20 |
+| P2-22 | Phase 3 handoff | TODO | - | - | out of scope this run | deps: P2-21 |
+| P2-23 | Closeout and checkpoint | TODO | - | - | out of scope this run | deps: P2-22; MUST: merge origin/main, keep Django 5.2.x, recompile hashed locks, re-check bumps (DECISIONS.md 'Dependency policy') |
 
 ## Inputs recorded
 REPO_URL, BASE_BRANCH=main, DOCS_PATH=`ai_calling agent/`, PYTHON=3.12, COVERAGE_MIN=90, COOKIE_SAMESITE=Lax, TRUSTED_PROXY_COUNT=1, PUSH=no.
