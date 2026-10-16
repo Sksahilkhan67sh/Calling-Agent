@@ -11,7 +11,13 @@
 | P2-06 | audit app (append-only) | DONE | EVIDENCE P2-06 | f023985 | deps: P2-03 |
 | P2-07 | MFA (TOTP) with encrypted seeds | DONE | EVIDENCE P2-07 | bb05736 | deps: P2-03, P2-06 |
 | P2-08 | Cookie JWT authentication | DONE | EVIDENCE P2-08 | b488051 | deps: P2-03, P2-05 |
-| P2-09 | Auth endpoints | DONE | EVIDENCE P2-09 | aa2bae0 | deps: P2-07, P2-08 |
+| P2-09 | Auth endpoints | DONE | EVIDENCE P2-09, R1 | aa2bae0, 6d32d34 | deps: P2-07, P2-08 |
+| R1 | State verification and baseline | DONE | EVIDENCE R1 | 6d32d34 | found P2-09 regression (deploy check), fixed |
+| R2 | Global error handler aligned to contract (OQ2-20) | TODO | - | - | deps: R1 |
+| R3 | GET /auth/me (OQ2-21) | TODO | - | - | deps: R2, R6 |
+| R4 | Logout via refresh cookie + CSRF (OQ2-22) | TODO | - | - | deps: R2 |
+| R5 | Out-of-band MFA enrollment code (OQ2-19) | TODO | - | - | deps: R2 |
+| R6 | Absolute session lifetime cap (OQ2-01) | TODO | - | - | deps: R2 |
 | P2-10 | Lockout, client IP, throttling | TODO | - | - | deps: P2-09 |
 | P2-11 | Session revocation semantics | TODO | - | - | deps: P2-09 |
 | P2-12 | Machine clients (api_client) | TODO | - | - | deps: P2-05, P2-06 |
@@ -46,3 +52,4 @@ Not available: Docker (compose stack), GitHub-hosted CI, network for pre-commit 
 - P2-07: TOTP service (RFC 6238 vectors, +/-1 window, constant-time, replay-protected), seeds AES-GCM-encrypted and bound to their row, enrolment/confirm/reset, restricted `MfaEnroll` credential refused by HasCapability. HTTP-level restriction against real default authenticators is retested in P2-09/P2-15 (OQ2-13). Next: P2-08 cookie JWT authentication.
 - P2-08: token layer (HS256, required typed claims, epoch, digest-only refresh storage, rotation with reuse detection), cookie helpers, CookieJWTAuthentication with CSRF; default authenticator switched on. Found and fixed a refresh-breaking `FOR UPDATE` bug. Next: P2-09 auth endpoints (contract: /auth/token, /auth/token/refresh, /auth/logout).
 - P2-09: login/refresh/logout + csrf + MFA enrolment endpoints per contract, uniform failures with equalised work, CSRF-first refresh, fail-closed audit, bounded JSON-only parsing. Contract-script check and OpenAPI annotations are P2-14. Layout additions: `login.py`, `parsers.py`, `serializers.py`, `urls.py`, `views.py` (views/urls/serializers were in the layout; `login.py` and `parsers.py` are additions). Next: P2-10 lockout (axes), trusted-proxy client IP, throttles.
+- R1 (baseline, re-run from scratch): all gates green except one regression the earlier iterations missed: `check --deploy --fail-level WARNING` exited 1 (9 drf-spectacular warnings from the P2-09 views). Fixed in 6d32d34 (schema annotations, no runtime change). Contract script: the three contract paths no longer drift; only the proposed additions (/auth/csrf, /auth/mfa/*) are reported, which P2-14 reclassifies as informational. Next: R2 global error handler.

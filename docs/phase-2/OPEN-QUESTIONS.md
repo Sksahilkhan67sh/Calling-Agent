@@ -38,3 +38,8 @@ _Populated by the task that owns it (see PROGRESS.md)._
 - **OQ2-21 No identity endpoint.** The contract has no `GET /me`; after login the SPA cannot learn the user's name or roles (the access cookie is HttpOnly). Propose adding one (capability-gated by authentication only).
 - **OQ2-22 Logout with an expired access token.** Logout requires authentication, so once the access cookie has expired the SPA must refresh first; otherwise the refresh cookie lingers until it expires. Alternative: let logout accept the refresh cookie alone (CSRF-protected).
 - **OQ2-23 Login throttle bucket is shared** by login, refresh and the enrolment endpoints per client address; a household or office NAT shares it. Rates come from load tests (OQ-01/OQ2-02); per-account throttling is the lockout in P2-10.
+
+## From R1
+- **OQ2-24 `main` moved ahead of the branch (needs a human decision).** After this branch was cut, `main` merged Dependabot PRs: Django 5.2.17 -> 6.1.2, Python base image 3.14, ruff and other minor bumps (8 commits). The fixed design decision is the Django 5.2 LTS line and this branch's lock files pin 5.2.17. Merging `main` into this branch will conflict in the hash-locked requirements and brings a Django major version this phase was not tested against. Recommendation: keep Phase 2 on 5.2 LTS, finish it, then decide separately (and test) whether to move to 6.x; revert or pin the Dependabot change on `main`. Not acted on.
+- **OQ2-25 A GitHub personal access token was shared in the chat/upload.** It was not needed (the repo is public) and was not used. Treat it as exposed: revoke it on GitHub and create a new one only if a push is wanted.
+

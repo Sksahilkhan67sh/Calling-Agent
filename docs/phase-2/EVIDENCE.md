@@ -130,3 +130,24 @@
 - Process notes, stated plainly: (a) my first attempt to remove a skipped test half-applied and left a failing baseline, which the first mutation run exposed (the same test failed under every mutation); fixed and the baseline re-verified before counting results; (b) mutation 8 initially did not apply because ruff had re-wrapped the target line (assertion in the harness) and was redone; (c) the throttle caught several of my own tests (6 logins in a loop, login+refresh sharing a bucket): that is the design working.
 - `ruff`, `ruff format --check`, `mypy apps config scripts` (strict): clean.
 - Not yet done (P2-10/P2-14): axes lockout and trusted-proxy client IP; OpenAPI annotations and the blocking contract check for these three paths.
+
+## R1 Baseline (re-run this session, clean clone of origin/phase-2/identity-security at 1cfa71a, then fix 6d32d34)
+| Check | Command | Result |
+|---|---|---|
+| Branch / tree | `git status -sb`, `git log --oneline origin/main..HEAD` | clean, in sync with origin, 21 commits ahead of main |
+| Services | `apt install postgresql redis-server`, `psql select version()`, `redis-server --version` | PostgreSQL 16.15, Redis 7.0.15 |
+| Install | `pip install --require-hashes -r backend/requirements/dev.txt` (fresh venv, Python 3.12.3) | success; Django 5.2.17, PyJWT 2.15.0, axes 8.3.1, pyotp 2.10.0 |
+| Lint / format | `ruff check .`, `ruff format --check .` | pass; 104 files formatted |
+| Types | `mypy apps config` | no issues in 57 source files |
+| Tests | `pytest -q --cov` | before fix 868 passed, 100% (1761 stmts); after fix 874 passed, 100% (1791 stmts) |
+| Migrations | `makemigrations --check --dry-run` | No changes detected |
+| Deploy check | `check --deploy --fail-level WARNING` (prod, throwaway env) | BEFORE: exit 1, 9 issues (3x drf_spectacular.W001, 6x W002). AFTER: "no issues", exit 0 |
+| Bandit | `bandit -q -r apps config -ll` | no findings |
+| pip-audit | `pip-audit -r requirements/prod.txt -r requirements/dev.txt --require-hashes` | No known vulnerabilities found |
+| gitleaks | v8.21.2 with `.gitleaks.toml`, full history (55 commits) and `origin/main..HEAD` (23) | no leaks found |
+| Contract | `scripts/check_api_contract.py` | BEFORE: drift on all 3 paths (missing 204/401/429) + 3 additions. AFTER: only the 3 additions (informational after P2-14) |
+
+Deliverable confirmation (files + tests exist): P2-04 roles/registry/sync_roles/matrix drift (tests/accounts/test_roles_matrix.py, test_sync_roles.py); P2-05 HasCapability, scoping, default-deny, `is_superuser` ignored (test_permissions.py, test_scoping*.py, tests/test_default_deny.py; permissions.py never reads `is_superuser`); P2-06 audit model/trigger/rollback/redaction (tests/audit/*); P2-07 MFA seeds encrypted, replay, restricted credential (test_mfa*.py); P2-08 type confusion (`test_a_refresh_token_is_not_an_access_token_and_vice_versa`), epoch, reuse, CSRF, no-store (test_tokens.py, test_cookie_auth.py). P2-02 Phase 1 edits (ENV-VARIABLES.md, tests/conftest.py, tests/config/test_settings.py, gen_throwaway_env.py) are recorded in DECISIONS.md. `git diff origin/main...HEAD -- docs/phase-0 spike "ai_calling agent"` is empty; the only docs/phase-1 change is ENV-VARIABLES.md.
+Not verified here: pre-commit hook environments, Docker, GitHub-hosted CI (unchanged).
+Environment note: the sandbox PostgreSQL/Redis stopped between tool calls once; restart with `service postgresql start; redis-server --daemonize yes`. A run during the outage produced 504 errors that were environmental, not code (re-run after restart: all green).
+
