@@ -8,6 +8,11 @@ not fail. Exit status is non-zero only on DRIFT for implemented paths:
   - a contract response code missing from the implementation.
 Later phases turn "not yet implemented" into a failure as each app lands (docs/phase-1/DECISIONS.md).
 Health routes are internal and not part of the contract.
+
+Proposed additions: endpoints that Phase 2 implements but the contract does not define yet
+(documented with exact YAML in docs/phase-2/DOC-PATCHES.md) are listed in PROPOSED_ADDITIONS and
+reported informationally. Any other implemented-but-undefined operation is still DRIFT. P2-14
+replaces this hard-coded set with annotation-driven marking.
 """
 
 from __future__ import annotations
@@ -25,6 +30,11 @@ SPEC_PATH = Path(__file__).resolve().parents[2] / "ai_calling agent" / "Backend"
 INTERNAL_PATHS = {"/healthz", "/readyz"}
 SERVER_PREFIX = "/v1"
 HTTP_METHODS = {"get", "put", "post", "patch", "delete"}
+PROPOSED_ADDITIONS = {
+    ("get", "/auth/csrf"),
+    ("post", "/auth/mfa/enroll"),
+    ("post", "/auth/mfa/confirm"),
+}
 
 
 @dataclass
@@ -32,6 +42,7 @@ class Report:
     drift: list[str] = field(default_factory=list)
     not_implemented: list[str] = field(default_factory=list)
     internal: list[str] = field(default_factory=list)
+    proposed_additions: list[str] = field(default_factory=list)
     compared: int = 0
 
     @property
@@ -86,7 +97,10 @@ def compare(spec: dict[str, Any], implemented: dict[str, Any]) -> Report:
         if path in INTERNAL_PATHS:
             report.internal.append(label)
         elif key not in spec_ops:
-            report.drift.append(f"{label}: implemented but not defined in the contract")
+            if key in PROPOSED_ADDITIONS:
+                report.proposed_additions.append(label)
+            else:
+                report.drift.append(f"{label}: implemented but not defined in the contract")
     for key in sorted(spec_ops):
         method, path = key
         label = f"{method.upper()} {path}"
@@ -130,6 +144,9 @@ def main() -> int:
     print(f"contract operations compared: {report.compared}")
     print(f"not yet implemented (informational): {len(report.not_implemented)}")
     print(f"internal, not in the contract: {', '.join(sorted(INTERNAL_PATHS))}")
+    print(f"proposed additions (informational, see DOC-PATCHES.md): {len(report.proposed_additions)}")
+    for line in report.proposed_additions:
+        print(f"  proposed: {line}")
     for line in report.drift:
         print(f"DRIFT: {line}")
     print("RESULT:", "FAIL (drift)" if report.drift else "OK (no drift for implemented paths)")
