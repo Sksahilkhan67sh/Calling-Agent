@@ -1,0 +1,41 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:16
+        env: {POSTGRES_USER: calling, POSTGRES_PASSWORD: calling, POSTGRES_DB: calling}
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U calling" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.13", cache: pip}
+      - run: pip install -r requirements-dev.txt
+      - run: pytest -q
+      - name: check --deploy
+        run: python manage.py check --deploy
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.prod
+          DJANGO_SECRET_KEY: ci-only-not-a-real-secret-key-ci-only-not-a-real-secret-key-0123456789
+          JWT_SIGNING_KEY: ci-only-jwt-signing-key-0123456789abcdef0123456789
+          DJANGO_ALLOWED_HOSTS: api.example.com
+          PRIMARY_DB_URL: postgres://calling:calling@localhost:5432/calling
+          PRIMARY_DB_POOL_SIZE: "5"
+          CORS_ALLOWED_ORIGINS: https://app.example.com
+          CALL_QUEUE_BROKER_URL: redis://localhost:6379/0
+          CACHE_URL: redis://localhost:6379/1
+          API_RATE_LIMIT_PER_MINUTE: "1000"
+          AXES_FAILURE_LIMIT: "5"
+          TRUSTED_PROXY_COUNT: "1"
+      - run: bandit -q -ll -r apps config
+      - run: pip-audit -r requirements.txt
+      - run: python manage.py makemigrations --check --dry-run
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.test

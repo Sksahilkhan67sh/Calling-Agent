@@ -1,0 +1,18 @@
+import os
+
+for k, v in {
+    "DJANGO_SECRET_KEY": "test-only-secret-key-test-only-secret-key-test-only-secret-key",
+    "JWT_SIGNING_KEY": "test-only-jwt-signing-key-0123456789abcdef0123456789",
+    "DJANGO_ALLOWED_HOSTS": "testserver,localhost",
+    "PRIMARY_DB_URL": "postgres://calling:calling@localhost:5432/calling",
+    "PRIMARY_DB_POOL_SIZE": "5",
+    "CORS_ALLOWED_ORIGINS": "http://localhost:3000",
+    "CALL_QUEUE_BROKER_URL": "redis://localhost:6379/0",
+    "API_RATE_LIMIT_PER_MINUTE": "1000",
+    "AXES_FAILURE_LIMIT": "3",
+}.items():
+    os.environ.setdefault(k, v)
+
+from .base import *  # noqa: E402, F403
+
+PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]

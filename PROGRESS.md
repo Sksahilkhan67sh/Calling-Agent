@@ -14,6 +14,10 @@ Status key: TODO / DOING / DONE / BLOCKED. Update after every phase (max 5 lines
 
 ## Phase log
 <!-- one block per finished phase, max 5 lines: done / open [verify] / blockers -->
+**Phase 1 DONE** — skeleton, settings split, Celery queues, core (default-deny RBAC, throttles, log redaction, /healthz), accounts (JWT cookies+CSRF, TOTP MFA, axes), audit (append-only trigger), CI. 23 tests pass; check --deploy, bandit, pip-audit clean.
+Open: MFA enrolment flow not in docs → no-device login refused, `manage.py enroll_mfa` fallback; `CACHE_URL` env added (absent from Environment-Config); rate/axes limits are required env, no guessed defaults.
+Deferred: `api_client` model/auth + drf-spectacular contract check until an endpoint needs them; INSERT-only DB role grant is a deploy step (trigger enforces now).
+Blockers: none. Push refused (no GitHub write access for this session); commits are local.
 
 ## Open [verify] items (do not assume; use safe fallback)
 - Dograh webhook body signing / signed timestamp
