@@ -294,7 +294,7 @@ def test_unmapped_completion_is_a_retryable_drop_not_success(contact):
     hook(a)
     a.refresh_from_db()
     assert a.state == "DroppedMidCall" and a.disconnect_reason == "unknown"
-    assert Contact.objects.get(pk=contact.pk).status == "Disconnected"
+    assert Contact.objects.get(pk=contact.pk).status == "RetryScheduled"  # mid-call retry decision approved (phase 5)
 
 
 @responses.activate

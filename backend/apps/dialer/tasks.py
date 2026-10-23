@@ -8,9 +8,10 @@ from django.db.models import Q
 from django.utils import timezone
 
 from apps.calls.models import CallAttempt
-from apps.calls.services import fail_attempt
+from apps.calls.services import enqueue_analysis, fail_attempt
 from apps.campaigns.models import Campaign
 from apps.contacts.models import Contact
+from apps.recovery.services import resume_vars
 from apps.suppression.services import is_suppressed
 from apps.voice_runtime.client import DialOutcomeUnknown, DograhClient, DograhError, StartCallRequest
 
@@ -75,14 +76,16 @@ def dial_attempt(attempt_id):
         if CallAttempt.objects.filter(Q(state=A.CONNECTED) | Q(state=A.INITIATED, started_at__isnull=False)
                                       ).count() >= settings.DOGRAH_EFFECTIVE_CONCURRENCY:
             return
-        attempt.started_at, contact.status = now, C.DIALING  # DIAL_REQUESTED marker, committed before the trigger call
+        attempt.started_at = now  # DIAL_REQUESTED marker, committed before the trigger call
+        contact.status = C.RECONNECTING if attempt.reconnect_of_id else C.DIALING
         attempt.save()
         contact.save()
         phone, model = contact.phone_number, campaign.agent_config.model_config_uuid
+        seed = resume_vars(attempt) if attempt.reconnect_of_id else {}
     try:
         started = DograhClient().start_call(StartCallRequest(
             workflow_uuid=str(campaign.dograh_workflow_uuid), phone_number=phone, attempt_id=str(attempt.pk),
-            campaign_id=str(campaign.pk), contact_ref=str(contact.pk), model_config_uuid=str(model) if model else None))
+            campaign_id=str(campaign.pk), contact_ref=str(contact.pk), prompt_vars=seed, model_config_uuid=str(model) if model else None))
     except DialOutcomeUnknown:
         log.error("dial outcome unknown", extra={"attempt_id": str(attempt.pk)})  # reconciler resolves; never redial
     except DograhError:
@@ -90,5 +93,6 @@ def dial_attempt(attempt_id):
             locked = (CallAttempt.objects.select_for_update(of=("self", "contact"))
                       .select_related("contact__campaign__retry_policy").get(pk=attempt.pk))
             fail_attempt(locked, "provider_error")
+        enqueue_analysis(locked)
     else:
         CallAttempt.objects.filter(pk=attempt.pk, provider_run_id__isnull=True).update(provider_run_id=started.run_id)

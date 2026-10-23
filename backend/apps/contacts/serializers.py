@@ -24,6 +24,19 @@ class ContactSerializer(serializers.ModelSerializer):
 
 class ContactDetailSerializer(ContactSerializer):
     suppression = SuppressionSerializer(read_only=True)
+    attempts = serializers.SerializerMethodField()
+    final_output = serializers.SerializerMethodField()
 
     class Meta(ContactSerializer.Meta):
-        fields = ContactSerializer.Meta.fields + ["suppression"]
+        fields = ContactSerializer.Meta.fields + ["suppression", "attempts", "final_output"]
+
+    def get_attempts(self, c):
+        from apps.dashboard_api.serializers import CallAttemptSerializer
+
+        return CallAttemptSerializer(c.attempts.order_by("attempt_number"), many=True).data
+
+    def get_final_output(self, c):
+        from apps.dashboard_api.serializers import FinalOutputSerializer
+
+        fo = getattr(c, "final_output", None)
+        return FinalOutputSerializer(fo).data if fo else None

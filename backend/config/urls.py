@@ -11,6 +11,7 @@ urlpatterns = [
     path("v1/", include("apps.campaigns.urls")),
     path("v1/", include("apps.contacts.urls")),
     path("v1/", include("apps.suppression.urls")),
+    path("v1/", include("apps.dashboard_api.urls")),
 ]
 if settings.ADMIN_ENABLED:
     urlpatterns.append(path("admin/", admin.site.urls))

@@ -25,6 +25,11 @@ for k, v in {
     "DOGRAH_EFFECTIVE_CONCURRENCY": "2",
     "DOGRAH_COMPLETED_DISPOSITIONS": "goal_met,completed",
     "RECONCILE_CEILING_SECONDS": "900",
+    "OBJECT_STORAGE_BUCKET": "test-recordings",
+    "RECORDING_URL_TTL_SECONDS": "300",
+    "AWS_DEFAULT_REGION": "us-east-1",
+    "AWS_ACCESS_KEY_ID": "testing",
+    "AWS_SECRET_ACCESS_KEY": "testing",
     "WEBHOOK_RATE_LIMIT_PER_MINUTE": "1000",
 }.items():
     os.environ.setdefault(k, v)

@@ -36,6 +36,9 @@ INSTALLED_APPS = [
     "apps.calls",
     "apps.dialer",
     "apps.webhooks",
+    "apps.recovery",
+    "apps.analysis",
+    "apps.dashboard_api",
 ]
 
 MIDDLEWARE = [
@@ -154,6 +157,9 @@ DOGRAH_EFFECTIVE_CONCURRENCY = int(env["DOGRAH_EFFECTIVE_CONCURRENCY"])
 # [verify] Dograh disposition values for a normally completed conversation are not in the docs; anything else is a drop
 DOGRAH_COMPLETED_DISPOSITIONS = [d for d in env["DOGRAH_COMPLETED_DISPOSITIONS"].split(",") if d]
 RECONCILE_CEILING_SECONDS = int(env["RECONCILE_CEILING_SECONDS"])
+OBJECT_STORAGE_BUCKET = env["OBJECT_STORAGE_BUCKET"]
+OBJECT_STORAGE_ENDPOINT_URL = env.get("OBJECT_STORAGE_ENDPOINT_URL") or None  # S3-compatible backends only
+RECORDING_URL_TTL_SECONDS = int(env["RECORDING_URL_TTL_SECONDS"])
 
 CELERY_BROKER_URL = env["CALL_QUEUE_BROKER_URL"]
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
@@ -166,6 +172,7 @@ CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_TASK_DEFAULT_QUEUE = "default"
 CELERY_BEAT_SCHEDULE = {
     "dispatch-due": {"task": "apps.dialer.tasks.dispatch_due", "schedule": 10.0},
+    "sweep-unanalyzed": {"task": "apps.analysis.tasks.sweep_unanalyzed", "schedule": 300.0},
     "reconcile-stuck": {"task": "apps.calls.tasks.reconcile_stuck", "schedule": 60.0},
 }
 CELERY_TASK_QUEUES = [Queue(q) for q in ("default", "dial", "webhook", "recovery", "analysis")]

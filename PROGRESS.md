@@ -9,7 +9,7 @@ Status key: TODO / DOING / DONE / BLOCKED. Update after every phase (max 5 lines
 | 2 | Data layer | `contacts` (encrypted phone + `phone_hmac`), `suppression`, `campaigns` (retry_policy, agent_config) | import + dedupe work, suppression matches by number, role-scoped CRUD | DONE |
 | 3 | Dograh integration | `voice_runtime` (`VoiceRuntime`, `DograhClient`), workflow sync, `model_overrides` | sandbox call triggered, `provider_run_id` saved | DONE |
 | 4 | Calling engine | `dialer`, `calls` state machine, `webhooks` (auth, receipt, verify-by-pull), reconciler | dial → run → webhook → state works; lost webhook recovered | DONE |
-| 5 | Recovery + analysis | `recovery` (30s → 10min retry, reconnect as new run), `analysis`, lead scoring, `dashboard_api`, consent flow | mid-call drop retried, final output + score produced | TODO |
+| 5 | Recovery + analysis | `recovery` (30s → 10min retry, reconnect as new run), `analysis`, lead scoring, `dashboard_api`, consent flow | mid-call drop retried, final output + score produced | DONE |
 | 6 | Hardening | load tests, security tests, retention sweeper, runbooks | Test Plan exit criteria + release-gate regression pass | TODO |
 
 ## Phase log
@@ -31,6 +31,10 @@ Blockers: none.
 **Phase 4 DONE** — `calls` (CallAttempt, one transition service, never-connected retry/close decision), `dialer` (beat dispatcher with lease + skip_locked, dial task with DIAL_REQUESTED marker before trigger, dial-time suppression/campaign/window/capacity checks), `webhooks` (shared-secret auth w/ rotation, receipt-first, verify-by-pull, adopts run after crash), reconciler. 111 tests pass; check --deploy, bandit, pip-audit clean.
 Open: unknown dial outcome past ceiling is left + logged, never redialed (no run lookup by initial_context [verify]); completion needs `DOGRAH_COMPLETED_DISPOSITIONS` (values unknown), anything else → retryable `unknown` drop; invalid_number/rejected not derivable from Dograh status → `provider_error`; calling window uses UTC; capacity = DB count under advisory lock, not a Redis semaphore.
 Deferred (phase 5): State Saver + recording/transcript copy, mid-call retry decision/reconnect, analysis enqueue. Blockers: none.
+
+**Phase 5 DONE** — State Saver (artifacts copied first, encrypted memory snapshot + disconnect_event + retry decision in one txn), reconnect as new run seeded with saved memory, in-call suppression (`agent_in_call`), recording kept only on explicit `granted` (private S3, SSE), rubric scoring + `analysis`/`final_output` (idempotent, swept), dashboard endpoints (audited transcript/recording access, Sales limited to final output/contact view). 128 tests pass; check --deploy, bandit, pip-audit clean.
+Open: Dograh `gathered_context` key names (Memory Spec §2 names assumed), completed-disposition values, `turns` format; scoring constants (objection penalties, influencer weight, engagement rule) and `interest` fallback `undecided` are unconfirmed; summary/sentiment/suggestions only pass through from Dograh (no direct analysis LLM); transcript assumed UTF-8 text; recording stored only when consent == granted (`not_applicable` not stored).
+Deferred: per-campaign score weights/bands + jurisdiction consent config, ContactHistory table, SSE (not in API spec), FinalOutput omits raw transcript/recording URL (use audited endpoints), retention sweeper (phase 6). Blockers: none.
 
 ## Open [verify] items (do not assume; use safe fallback)
 - Dograh webhook body signing / signed timestamp

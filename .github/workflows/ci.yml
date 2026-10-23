@@ -49,6 +49,8 @@ jobs:
           DOGRAH_EFFECTIVE_CONCURRENCY: "10"
           DOGRAH_COMPLETED_DISPOSITIONS: goal_met
           RECONCILE_CEILING_SECONDS: "900"
+          OBJECT_STORAGE_BUCKET: ci-recordings
+          RECORDING_URL_TTL_SECONDS: "300"
           WEBHOOK_RATE_LIMIT_PER_MINUTE: "1000"
       - run: bandit -q -ll -r apps config
       - run: pip-audit -r requirements.txt
