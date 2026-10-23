@@ -8,7 +8,7 @@ Status key: TODO / DOING / DONE / BLOCKED. Update after every phase (max 5 lines
 | 1 | Foundation | skeleton, settings split, Postgres, Celery+Redis, CI, `core`, `accounts` (JWT cookies, MFA, RBAC, throttle, axes), `audit` | login/refresh work, default-deny test passes, audit rows written | TODO |
 | 2 | Data layer | `contacts` (encrypted phone + `phone_hmac`), `suppression`, `campaigns` (retry_policy, agent_config) | import + dedupe work, suppression matches by number, role-scoped CRUD | DONE |
 | 3 | Dograh integration | `voice_runtime` (`VoiceRuntime`, `DograhClient`), workflow sync, `model_overrides` | sandbox call triggered, `provider_run_id` saved | DONE |
-| 4 | Calling engine | `dialer`, `calls` state machine, `webhooks` (auth, receipt, verify-by-pull), reconciler | dial → run → webhook → state works; lost webhook recovered | TODO |
+| 4 | Calling engine | `dialer`, `calls` state machine, `webhooks` (auth, receipt, verify-by-pull), reconciler | dial → run → webhook → state works; lost webhook recovered | DONE |
 | 5 | Recovery + analysis | `recovery` (30s → 10min retry, reconnect as new run), `analysis`, lead scoring, `dashboard_api`, consent flow | mid-call drop retried, final output + score produced | TODO |
 | 6 | Hardening | load tests, security tests, retention sweeper, runbooks | Test Plan exit criteria + release-gate regression pass | TODO |
 
@@ -27,6 +27,10 @@ Blockers: none.
 **Phase 3 DONE** — `voice_runtime` (`VoiceRuntime`, `DograhClient`: trigger never retried, unknown outcome → `DialOutcomeUnknown`; get_run; SSRF-guarded artifact download; workflow push/publish), `model_overrides` from `agent_config.model_config_uuid` or env default, Admin-only `POST /v1/campaigns/{id}/sync-workflow` (locked, audited before/after, fixed consent + opt-out nodes). 84 tests pass; check --deploy, bandit, pip-audit clean.
 Open: Dograh Agents API/run-lookup paths, workflow-definition schema, run payload keys, `model_overrides` body, `retry_config` shape not in docs → paths are required env (`DOGRAH_RUN_PATH`, `DOGRAH_WORKFLOW_PATH`), rest unconfirmed; sync endpoint not in API-Specification; consent line is the default text only (jurisdiction config → phase 5); only mocked HTTP tested, no sandbox run yet, `provider_run_id` column lands with `calls` in phase 4.
 Blockers: none.
+
+**Phase 4 DONE** — `calls` (CallAttempt, one transition service, never-connected retry/close decision), `dialer` (beat dispatcher with lease + skip_locked, dial task with DIAL_REQUESTED marker before trigger, dial-time suppression/campaign/window/capacity checks), `webhooks` (shared-secret auth w/ rotation, receipt-first, verify-by-pull, adopts run after crash), reconciler. 111 tests pass; check --deploy, bandit, pip-audit clean.
+Open: unknown dial outcome past ceiling is left + logged, never redialed (no run lookup by initial_context [verify]); completion needs `DOGRAH_COMPLETED_DISPOSITIONS` (values unknown), anything else → retryable `unknown` drop; invalid_number/rejected not derivable from Dograh status → `provider_error`; calling window uses UTC; capacity = DB count under advisory lock, not a Redis semaphore.
+Deferred (phase 5): State Saver + recording/transcript copy, mid-call retry decision/reconnect, analysis enqueue. Blockers: none.
 
 ## Open [verify] items (do not assume; use safe fallback)
 - Dograh webhook body signing / signed timestamp

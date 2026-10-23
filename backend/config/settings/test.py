@@ -21,9 +21,17 @@ for k, v in {
     "DOGRAH_RUN_PATH": "/api/v1/runs",
     "DOGRAH_WORKFLOW_PATH": "/api/v1/agents",
     "PUBLIC_BASE_URL": "https://api.example.test",
+    "DOGRAH_WEBHOOK_SECRET": "test-webhook-secret-test-webhook-secret",
+    "DOGRAH_EFFECTIVE_CONCURRENCY": "2",
+    "DOGRAH_COMPLETED_DISPOSITIONS": "goal_met,completed",
+    "RECONCILE_CEILING_SECONDS": "900",
+    "WEBHOOK_RATE_LIMIT_PER_MINUTE": "1000",
 }.items():
     os.environ.setdefault(k, v)
 
 from .base import *  # noqa: E402, F403
 
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
+
+CELERY_TASK_ALWAYS_EAGER = True
+CELERY_TASK_EAGER_PROPAGATES = True

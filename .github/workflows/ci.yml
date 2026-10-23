@@ -45,6 +45,11 @@ jobs:
           DOGRAH_RUN_PATH: /api/v1/runs
           DOGRAH_WORKFLOW_PATH: /api/v1/agents
           PUBLIC_BASE_URL: https://api.example.com
+          DOGRAH_WEBHOOK_SECRET: ci-only-webhook-secret-ci-only-webhook-secret
+          DOGRAH_EFFECTIVE_CONCURRENCY: "10"
+          DOGRAH_COMPLETED_DISPOSITIONS: goal_met
+          RECONCILE_CEILING_SECONDS: "900"
+          WEBHOOK_RATE_LIMIT_PER_MINUTE: "1000"
       - run: bandit -q -ll -r apps config
       - run: pip-audit -r requirements.txt
       - run: python manage.py makemigrations --check --dry-run

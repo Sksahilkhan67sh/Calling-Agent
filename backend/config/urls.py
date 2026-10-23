@@ -6,6 +6,7 @@ from apps.core.views import health
 
 urlpatterns = [
     path("healthz", health),
+    path("webhooks/", include("apps.webhooks.urls")),
     path("v1/auth/", include("apps.accounts.urls")),
     path("v1/", include("apps.campaigns.urls")),
     path("v1/", include("apps.contacts.urls")),

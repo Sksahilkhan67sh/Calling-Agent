@@ -33,6 +33,9 @@ INSTALLED_APPS = [
     "apps.contacts",
     "apps.suppression",
     "apps.voice_runtime",
+    "apps.calls",
+    "apps.dialer",
+    "apps.webhooks",
 ]
 
 MIDDLEWARE = [
@@ -129,7 +132,7 @@ REST_FRAMEWORK = {
         "apps.core.throttles.ApiUserThrottle",
         "rest_framework.throttling.ScopedRateThrottle",
     ],
-    "DEFAULT_THROTTLE_RATES": {"api-user": _rate, "login": _rate},
+    "DEFAULT_THROTTLE_RATES": {"api-user": _rate, "login": _rate, "webhook": f"{int(env['WEBHOOK_RATE_LIMIT_PER_MINUTE'])}/min"},
     "NUM_PROXIES": TRUSTED_PROXY_COUNT,
 }
 
@@ -144,6 +147,13 @@ DOGRAH_ARTIFACT_DEADLINE_SECONDS = int(env["DOGRAH_ARTIFACT_DEADLINE_SECONDS"])
 DOGRAH_RUN_PATH = env["DOGRAH_RUN_PATH"]
 DOGRAH_WORKFLOW_PATH = env["DOGRAH_WORKFLOW_PATH"]
 PUBLIC_BASE_URL = env["PUBLIC_BASE_URL"].rstrip("/")
+DOGRAH_WEBHOOK_SECRET = env["DOGRAH_WEBHOOK_SECRET"]
+DOGRAH_WEBHOOK_SECRET_PREVIOUS = env.get("DOGRAH_WEBHOOK_SECRET_PREVIOUS", "")  # only during rotation
+DOGRAH_WEBHOOK_HEADER_NAME = env.get("DOGRAH_WEBHOOK_HEADER_NAME", "X-Dograh-Webhook-Secret")
+DOGRAH_EFFECTIVE_CONCURRENCY = int(env["DOGRAH_EFFECTIVE_CONCURRENCY"])
+# [verify] Dograh disposition values for a normally completed conversation are not in the docs; anything else is a drop
+DOGRAH_COMPLETED_DISPOSITIONS = [d for d in env["DOGRAH_COMPLETED_DISPOSITIONS"].split(",") if d]
+RECONCILE_CEILING_SECONDS = int(env["RECONCILE_CEILING_SECONDS"])
 
 CELERY_BROKER_URL = env["CALL_QUEUE_BROKER_URL"]
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
@@ -154,6 +164,10 @@ CELERY_TASK_TIME_LIMIT = 90
 CELERY_TASK_IGNORE_RESULT = True
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_TASK_DEFAULT_QUEUE = "default"
+CELERY_BEAT_SCHEDULE = {
+    "dispatch-due": {"task": "apps.dialer.tasks.dispatch_due", "schedule": 10.0},
+    "reconcile-stuck": {"task": "apps.calls.tasks.reconcile_stuck", "schedule": 60.0},
+}
 CELERY_TASK_QUEUES = [Queue(q) for q in ("default", "dial", "webhook", "recovery", "analysis")]
 
 LOGGING = {
