@@ -10,7 +10,7 @@ Status key: TODO / DOING / DONE / BLOCKED. Update after every phase (max 5 lines
 | 3 | Dograh integration | `voice_runtime` (`VoiceRuntime`, `DograhClient`), workflow sync, `model_overrides` | sandbox call triggered, `provider_run_id` saved | DONE |
 | 4 | Calling engine | `dialer`, `calls` state machine, `webhooks` (auth, receipt, verify-by-pull), reconciler | dial → run → webhook → state works; lost webhook recovered | DONE |
 | 5 | Recovery + analysis | `recovery` (30s → 10min retry, reconnect as new run), `analysis`, lead scoring, `dashboard_api`, consent flow | mid-call drop retried, final output + score produced | DONE |
-| 6 | Hardening | load tests, security tests, retention sweeper, runbooks | Test Plan exit criteria + release-gate regression pass | TODO |
+| 6 | Hardening | load tests, security tests, retention sweeper, runbooks | Test Plan exit criteria + release-gate regression pass | DONE |
 
 ## Phase log
 <!-- one block per finished phase, max 5 lines: done / open [verify] / blockers -->
@@ -35,6 +35,10 @@ Deferred (phase 5): State Saver + recording/transcript copy, mid-call retry deci
 **Phase 5 DONE** — State Saver (artifacts copied first, encrypted memory snapshot + disconnect_event + retry decision in one txn), reconnect as new run seeded with saved memory, in-call suppression (`agent_in_call`), recording kept only on explicit `granted` (private S3, SSE), rubric scoring + `analysis`/`final_output` (idempotent, swept), dashboard endpoints (audited transcript/recording access, Sales limited to final output/contact view). 128 tests pass; check --deploy, bandit, pip-audit clean.
 Open: Dograh `gathered_context` key names (Memory Spec §2 names assumed), completed-disposition values, `turns` format; scoring constants (objection penalties, influencer weight, engagement rule) and `interest` fallback `undecided` are unconfirmed; summary/sentiment/suggestions only pass through from Dograh (no direct analysis LLM); transcript assumed UTF-8 text; recording stored only when consent == granted (`not_applicable` not stored).
 Deferred: per-campaign score weights/bands + jurisdiction consent config, ContactHistory table, SSE (not in API spec), FinalOutput omits raw transcript/recording URL (use audited endpoints), retention sweeper (phase 6). Blockers: none.
+
+**Phase 6 DONE** — retention sweeper (object deleted first, suppression untouched), full role×endpoint matrix, snapshot-failure-never-retries test, suppression bypass regressions (queued retry, re-import by number, in-call vs manual), in-process webhook flood + 429 tests, `loadtest/webhook_flood.py`, `RUNBOOK.md`. 142 tests pass; check --deploy, bandit, pip-audit clean.
+Open: staging load tests not run (no environment) so `WEBHOOK_RATE_LIMIT_PER_MINUTE`/`DOGRAH_EFFECTIVE_CONCURRENCY` are unvalidated; snapshot-ordering test is failure-injection in one transaction, not randomized async timing; prompt-injection/output-guardrail suites are Dograh-side, untested here; `RETENTION_DAYS` is a required compliance decision; contact-level erasure/anonymisation of suppressed contacts and FinalOutput retention not implemented.
+Blockers: none. Pushing not attempted (earlier push was refused); all commits local.
 
 ## Open [verify] items (do not assume; use safe fallback)
 - Dograh webhook body signing / signed timestamp

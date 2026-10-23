@@ -160,6 +160,7 @@ RECONCILE_CEILING_SECONDS = int(env["RECONCILE_CEILING_SECONDS"])
 OBJECT_STORAGE_BUCKET = env["OBJECT_STORAGE_BUCKET"]
 OBJECT_STORAGE_ENDPOINT_URL = env.get("OBJECT_STORAGE_ENDPOINT_URL") or None  # S3-compatible backends only
 RECORDING_URL_TTL_SECONDS = int(env["RECORDING_URL_TTL_SECONDS"])
+RETENTION_DAYS = int(env["RETENTION_DAYS"])  # legal/compliance decision per Data Privacy; no guessed default
 
 CELERY_BROKER_URL = env["CALL_QUEUE_BROKER_URL"]
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
@@ -172,6 +173,7 @@ CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_TASK_DEFAULT_QUEUE = "default"
 CELERY_BEAT_SCHEDULE = {
     "dispatch-due": {"task": "apps.dialer.tasks.dispatch_due", "schedule": 10.0},
+    "sweep-retention": {"task": "apps.recovery.tasks.sweep_retention", "schedule": 86400.0},
     "sweep-unanalyzed": {"task": "apps.analysis.tasks.sweep_unanalyzed", "schedule": 300.0},
     "reconcile-stuck": {"task": "apps.calls.tasks.reconcile_stuck", "schedule": 60.0},
 }

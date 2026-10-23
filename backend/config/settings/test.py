@@ -27,6 +27,7 @@ for k, v in {
     "RECONCILE_CEILING_SECONDS": "900",
     "OBJECT_STORAGE_BUCKET": "test-recordings",
     "RECORDING_URL_TTL_SECONDS": "300",
+    "RETENTION_DAYS": "30",
     "AWS_DEFAULT_REGION": "us-east-1",
     "AWS_ACCESS_KEY_ID": "testing",
     "AWS_SECRET_ACCESS_KEY": "testing",
