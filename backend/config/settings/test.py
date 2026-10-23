@@ -10,6 +10,8 @@ for k, v in {
     "CALL_QUEUE_BROKER_URL": "redis://localhost:6379/0",
     "API_RATE_LIMIT_PER_MINUTE": "1000",
     "AXES_FAILURE_LIMIT": "3",
+    "FIELD_ENCRYPTION_KEYS": "egsE0xEKI-D7TSQjfs-ner_qJpnp-bjBFoj4th8G9ek=",
+    "PHONE_HMAC_KEY": "test-only-phone-hmac-key",
 }.items():
     os.environ.setdefault(k, v)
 

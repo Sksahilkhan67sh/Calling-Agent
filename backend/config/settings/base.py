@@ -29,6 +29,9 @@ INSTALLED_APPS = [
     "django_otp.plugins.otp_totp",
     "apps.accounts",
     "apps.audit",
+    "apps.campaigns",
+    "apps.contacts",
+    "apps.suppression",
 ]
 
 MIDDLEWARE = [
@@ -104,6 +107,10 @@ SIMPLE_JWT = {
     "SIGNING_KEY": env["JWT_SIGNING_KEY"],
 }
 AUTH_COOKIE_SECURE = True
+
+FIELD_ENCRYPTION_KEYS = env["FIELD_ENCRYPTION_KEYS"].split(",")  # newest first; older keys only decrypt
+PHONE_HMAC_KEY = env["PHONE_HMAC_KEY"].encode()
+CONTACT_IMPORT_MAX_BYTES = 10 * 1024 * 1024
 
 CORS_ALLOWED_ORIGINS = env["CORS_ALLOWED_ORIGINS"].split(",")
 CORS_ALLOW_CREDENTIALS = True

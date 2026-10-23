@@ -34,3 +34,23 @@ def login(client):
 
 def csrf(client):
     return {"HTTP_X_CSRFTOKEN": client.cookies["csrftoken"].value}
+
+
+@pytest.fixture
+def api(make_user):
+    clients = {}
+
+    def _api(username, role):
+        if username not in clients:
+            clients[username] = APIClient()
+            clients[username].force_authenticate(make_user(username, role))
+        return clients[username]
+
+    return _api
+
+
+def csv_file(*numbers, header="phone_number", name="c.csv"):
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    body = header + "\n" + "\n".join(numbers) + "\n"
+    return SimpleUploadedFile(name, body.encode(), content_type="text/csv")

@@ -1,5 +1,11 @@
 from rest_framework.permissions import BasePermission
 
+ADMIN, MANAGER, SALES = "Admin", "Campaign Manager", "Sales/Follow-up"
+
+
+def user_roles(user):
+    return set(user.groups.values_list("name", flat=True))
+
 
 class RolePermission(BasePermission):
     # Views declare roles = {"GET": {"Admin"}}; an undeclared method is denied

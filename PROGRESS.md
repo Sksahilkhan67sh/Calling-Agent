@@ -19,6 +19,11 @@ Open: MFA enrolment flow not in docs → no-device login refused, `manage.py enr
 Deferred: `api_client` model/auth + drf-spectacular contract check until an endpoint needs them; INSERT-only DB role grant is a deploy step (trigger enforces now).
 Blockers: none. Push refused (no GitHub write access for this session); commits are local.
 
+**Phase 2 DONE** — crypto helpers (Fernet rotation, phone HMAC), campaigns (+retry_policy, agent_config), contacts import (CSV/XLSX, dedupe, unique per campaign), suppression by hmac + contact id, role-scoped CRUD, audit on config/suppression writes. 58 tests pass; check --deploy, bandit, pip-audit clean.
+Open: import format not in docs → header `phone_number`/`phone` required, numbers need a `+` country code (no default region); Sales read contacts across all campaigns (docs silent on scope); retry_policy/agent_config on create is Admin-only; `prompt_template_version` defaults to "v1".
+Deferred: ContactDetail attempts/final_output (phases 4–5); dial-time `is_suppressed` use in phase 4, `agent_in_call` source in phase 5; retention sweeper must anonymise, not delete, suppressed contacts (FK is PROTECT).
+Blockers: none.
+
 ## Open [verify] items (do not assume; use safe fallback)
 - Dograh webhook body signing / signed timestamp
 - Dograh run-listing API filter by `initial_context` (crash recovery after trigger call)

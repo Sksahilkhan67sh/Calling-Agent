@@ -34,6 +34,8 @@ jobs:
           API_RATE_LIMIT_PER_MINUTE: "1000"
           AXES_FAILURE_LIMIT: "5"
           TRUSTED_PROXY_COUNT: "1"
+          FIELD_ENCRYPTION_KEYS: egsE0xEKI-D7TSQjfs-ner_qJpnp-bjBFoj4th8G9ek=
+          PHONE_HMAC_KEY: ci-only-phone-hmac-key
       - run: bandit -q -ll -r apps config
       - run: pip-audit -r requirements.txt
       - run: python manage.py makemigrations --check --dry-run

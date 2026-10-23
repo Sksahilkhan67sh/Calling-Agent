@@ -13,3 +13,7 @@ argon2-cffi==25.1.0
 python-json-logger==4.2.0
 gunicorn==26.2.0
 uvicorn==0.54.0
+cryptography==50.0.2
+phonenumbers==9.0.41
+openpyxl==3.1.5
+defusedxml==0.7.1
