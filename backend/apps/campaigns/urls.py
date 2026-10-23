@@ -7,4 +7,5 @@ urlpatterns = [
     path("campaigns/<uuid:campaign_id>", views.CampaignDetailView.as_view()),
     path("campaigns/<uuid:campaign_id>/retry-policy", views.RetryPolicyView.as_view()),
     path("campaigns/<uuid:campaign_id>/agent-config", views.AgentConfigView.as_view()),
+    path("campaigns/<uuid:campaign_id>/sync-workflow", views.WorkflowSyncView.as_view()),
 ]

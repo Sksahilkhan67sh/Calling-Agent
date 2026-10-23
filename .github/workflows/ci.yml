@@ -36,6 +36,15 @@ jobs:
           TRUSTED_PROXY_COUNT: "1"
           FIELD_ENCRYPTION_KEYS: egsE0xEKI-D7TSQjfs-ner_qJpnp-bjBFoj4th8G9ek=
           PHONE_HMAC_KEY: ci-only-phone-hmac-key
+          DOGRAH_BASE_URL: https://dograh.example.com
+          DOGRAH_API_KEY: ci-only-dograh-key
+          DOGRAH_REQUEST_TIMEOUT_SECONDS: "10"
+          DOGRAH_ALLOWED_ARTIFACT_HOSTS: artifacts.example.com
+          DOGRAH_MAX_ARTIFACT_BYTES: "104857600"
+          DOGRAH_ARTIFACT_DEADLINE_SECONDS: "60"
+          DOGRAH_RUN_PATH: /api/v1/runs
+          DOGRAH_WORKFLOW_PATH: /api/v1/agents
+          PUBLIC_BASE_URL: https://api.example.com
       - run: bandit -q -ll -r apps config
       - run: pip-audit -r requirements.txt
       - run: python manage.py makemigrations --check --dry-run

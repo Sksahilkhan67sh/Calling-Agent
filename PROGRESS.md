@@ -7,7 +7,7 @@ Status key: TODO / DOING / DONE / BLOCKED. Update after every phase (max 5 lines
 |---|---|---|---|---|
 | 1 | Foundation | skeleton, settings split, Postgres, Celery+Redis, CI, `core`, `accounts` (JWT cookies, MFA, RBAC, throttle, axes), `audit` | login/refresh work, default-deny test passes, audit rows written | TODO |
 | 2 | Data layer | `contacts` (encrypted phone + `phone_hmac`), `suppression`, `campaigns` (retry_policy, agent_config) | import + dedupe work, suppression matches by number, role-scoped CRUD | DONE |
-| 3 | Dograh integration | `voice_runtime` (`VoiceRuntime`, `DograhClient`), workflow sync, `model_overrides` | sandbox call triggered, `provider_run_id` saved | TODO |
+| 3 | Dograh integration | `voice_runtime` (`VoiceRuntime`, `DograhClient`), workflow sync, `model_overrides` | sandbox call triggered, `provider_run_id` saved | DONE |
 | 4 | Calling engine | `dialer`, `calls` state machine, `webhooks` (auth, receipt, verify-by-pull), reconciler | dial → run → webhook → state works; lost webhook recovered | TODO |
 | 5 | Recovery + analysis | `recovery` (30s → 10min retry, reconnect as new run), `analysis`, lead scoring, `dashboard_api`, consent flow | mid-call drop retried, final output + score produced | TODO |
 | 6 | Hardening | load tests, security tests, retention sweeper, runbooks | Test Plan exit criteria + release-gate regression pass | TODO |
@@ -24,11 +24,16 @@ Open: import format not in docs → header `phone_number`/`phone` required, numb
 Deferred: ContactDetail attempts/final_output (phases 4–5); dial-time `is_suppressed` use in phase 4, `agent_in_call` source in phase 5; retention sweeper must anonymise, not delete, suppressed contacts (FK is PROTECT).
 Blockers: none.
 
+**Phase 3 DONE** — `voice_runtime` (`VoiceRuntime`, `DograhClient`: trigger never retried, unknown outcome → `DialOutcomeUnknown`; get_run; SSRF-guarded artifact download; workflow push/publish), `model_overrides` from `agent_config.model_config_uuid` or env default, Admin-only `POST /v1/campaigns/{id}/sync-workflow` (locked, audited before/after, fixed consent + opt-out nodes). 84 tests pass; check --deploy, bandit, pip-audit clean.
+Open: Dograh Agents API/run-lookup paths, workflow-definition schema, run payload keys, `model_overrides` body, `retry_config` shape not in docs → paths are required env (`DOGRAH_RUN_PATH`, `DOGRAH_WORKFLOW_PATH`), rest unconfirmed; sync endpoint not in API-Specification; consent line is the default text only (jurisdiction config → phase 5); only mocked HTTP tested, no sandbox run yet, `provider_run_id` column lands with `calls` in phase 4.
+Blockers: none.
+
 ## Open [verify] items (do not assume; use safe fallback)
 - Dograh webhook body signing / signed timestamp
 - Dograh run-listing API filter by `initial_context` (crash recovery after trigger call)
 - Dograh failure status → `invalid_number` / `rejected` mapping per carrier
 - Signature verification for Exotel, Telnyx, Cloudonix, Asterisk (confirmed: Twilio, Plivo, Vobiz, Vonage)
+- Dograh Agents API (create/update/publish), run-lookup response keys, workflow-definition schema
 - STT / LLM / TTS vendors and carrier not chosen yet (config inside Dograh)
 
 ## Blockers

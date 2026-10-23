@@ -77,7 +77,7 @@ class AgentConfigSerializer(serializers.ModelSerializer):
     class Meta:
         model = AgentConfig
         fields = ["id", "campaign_id", "persona_tone", "script_skeleton", "required_entity_fields",
-                  "escalation_contact_method", "prompt_template_version"]
+                  "escalation_contact_method", "prompt_template_version", "model_config_uuid"]
         read_only_fields = ["prompt_template_version"]
 
 

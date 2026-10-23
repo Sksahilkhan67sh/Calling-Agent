@@ -12,6 +12,15 @@ for k, v in {
     "AXES_FAILURE_LIMIT": "3",
     "FIELD_ENCRYPTION_KEYS": "egsE0xEKI-D7TSQjfs-ner_qJpnp-bjBFoj4th8G9ek=",
     "PHONE_HMAC_KEY": "test-only-phone-hmac-key",
+    "DOGRAH_BASE_URL": "https://dograh.test",
+    "DOGRAH_API_KEY": "test-only-dograh-key",
+    "DOGRAH_REQUEST_TIMEOUT_SECONDS": "5",
+    "DOGRAH_ALLOWED_ARTIFACT_HOSTS": "artifacts.dograh.test",
+    "DOGRAH_MAX_ARTIFACT_BYTES": "1024",
+    "DOGRAH_ARTIFACT_DEADLINE_SECONDS": "5",
+    "DOGRAH_RUN_PATH": "/api/v1/runs",
+    "DOGRAH_WORKFLOW_PATH": "/api/v1/agents",
+    "PUBLIC_BASE_URL": "https://api.example.test",
 }.items():
     os.environ.setdefault(k, v)
 

@@ -45,6 +45,8 @@ class Campaign(models.Model):
     name = models.CharField(max_length=200)
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.DRAFT)
     created_at = models.DateTimeField(auto_now_add=True)
+    dograh_workflow_uuid = models.UUIDField(null=True, blank=True)
+    workflow_synced_sha256 = models.CharField(max_length=64, blank=True)
 
     objects = CampaignQuerySet.as_manager()
 
@@ -68,3 +70,4 @@ class AgentConfig(models.Model):
     required_entity_fields = models.JSONField(default=list)
     escalation_contact_method = models.CharField(max_length=255, blank=True)
     prompt_template_version = models.CharField(max_length=32, default="v1")
+    model_config_uuid = models.UUIDField(null=True, blank=True)  # named Dograh model config; keys stay in Dograh

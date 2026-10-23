@@ -11,8 +11,10 @@ from apps.contacts.importer import parse_numbers
 from apps.contacts.models import Contact
 from apps.core.crypto import encrypt, phone_hmac
 from apps.core.permissions import ADMIN, MANAGER, user_roles
+from apps.voice_runtime.client import DograhError
 
 from .models import AgentConfig, Campaign, RetryPolicy
+from .sync import sync_workflow
 from .serializers import (AgentConfigSerializer, CampaignCreateSerializer, CampaignSerializer,
                           CampaignStatusSerializer, RetryPolicySerializer)
 
@@ -97,3 +99,15 @@ class RetryPolicyView(_CampaignConfigView):
 class AgentConfigView(_CampaignConfigView):
     serializer_class = AgentConfigSerializer
     model, audit_name = AgentConfig, "agent_config"
+
+
+class WorkflowSyncView(APIView):
+    roles = {"POST": {ADMIN}}
+
+    def post(self, request, campaign_id):
+        campaign = get_object_or_404(Campaign.objects.for_user(request.user), pk=campaign_id)
+        try:
+            campaign = sync_workflow(campaign.pk, actor=request.user, request=request)
+        except DograhError:
+            return Response({"detail": "Dograh workflow sync failed"}, status=status.HTTP_502_BAD_GATEWAY)
+        return Response({"workflow_uuid": campaign.dograh_workflow_uuid})
