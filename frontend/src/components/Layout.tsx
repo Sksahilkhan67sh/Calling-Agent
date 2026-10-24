@@ -2,7 +2,10 @@ import { useState } from 'react'
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import { strings } from '../lib/strings'
 import { OfflineBanner } from './OfflineBanner'
+import { Breadcrumbs } from './Breadcrumbs'
 import { ThemeToggle } from './ThemeToggle'
+import { ThrottleBanner } from './ThrottleBanner'
+import { UserMenu } from './UserMenu'
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
   `block rounded-md px-3 py-2 text-sm ${isActive ? 'bg-card font-semibold text-primary' : 'hover:bg-card'}`
@@ -33,8 +36,12 @@ export function Layout() {
             {strings.appName}
           </Link>
         </div>
-        <ThemeToggle />
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <UserMenu />
+        </div>
       </header>
+      <ThrottleBanner />
       <div className="flex flex-1 flex-col md:flex-row">
         <nav
           id="main-nav"
@@ -46,6 +53,7 @@ export function Layout() {
           </NavLink>
         </nav>
         <main id="main" className="min-w-0 flex-1 p-4 md:p-6">
+          <Breadcrumbs />
           <Outlet />
         </main>
       </div>
