@@ -64,6 +64,20 @@ export const createRoutes = (queryClient: QueryClient): RouteObject[] => [
                   }
                 },
               },
+              {
+                path: ':id',
+                handle: { crumb: strings.breadcrumb.campaign },
+                lazy: async () => {
+                  const { CampaignDetail } = await import('./pages/CampaignDetail')
+                  return {
+                    element: (
+                      <RequireRole roles={[ADMIN, MANAGER, SALES]}>
+                        <CampaignDetail />
+                      </RequireRole>
+                    ),
+                  }
+                },
+              },
             ],
           },
           { path: 'forbidden', element: <Forbidden /> },
