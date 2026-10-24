@@ -75,3 +75,16 @@ def test_push_failure_changes_nothing(api, campaign):
 def test_only_admin_can_sync(api, campaign):
     assert sync(api, campaign, "Campaign Manager").status_code == 403
     assert not responses.calls
+
+
+@responses.activate
+def test_workflow_synced_flag_is_admin_only_and_tracks_config(api, campaign):
+    admin, url = api("admin", "Admin"), f"/v1/campaigns/{campaign.pk}"
+    assert admin.get(url).json()["workflow_synced"] is False
+    responses.post(WF_URL, json={"uuid": UUID})
+    responses.post(f"{WF_URL}/{UUID}/publish", json={})
+    sync(api, campaign)
+    assert admin.get(url).json()["workflow_synced"] is True
+    admin.put(f"{url}/agent-config", {"persona_tone": "warm"}, format="json")
+    assert admin.get(url).json()["workflow_synced"] is False
+    assert "workflow_synced" not in api("sales", "Sales/Follow-up").get(url).json()

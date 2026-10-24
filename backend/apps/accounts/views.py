@@ -14,6 +14,7 @@ from rest_framework_simplejwt.settings import api_settings
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.audit.services import record
+from apps.core.permissions import user_roles
 
 from .authentication import ACCESS_COOKIE, REFRESH_COOKIE
 
@@ -103,3 +104,11 @@ class LogoutView(APIView):
         response.delete_cookie(ACCESS_COOKIE, samesite="Strict")
         response.delete_cookie(REFRESH_COOKIE, path=REFRESH_PATH, samesite="Strict")
         return response
+
+
+class MeView(APIView):
+    permission_classes = [IsAuthenticated]  # any signed-in user, even one without a role, so the UI can show a 403 state
+
+    def get(self, request):
+        return Response({"id": request.user.pk, "username": request.user.get_username(),
+                         "roles": sorted(user_roles(request.user))})

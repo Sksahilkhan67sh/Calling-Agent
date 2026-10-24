@@ -113,3 +113,27 @@ def test_access_token_of_deactivated_user_rejected(make_user, login, client):
 
 def test_logout_without_login_is_401(client, db):
     assert client.post(LOGOUT).status_code == 401
+
+
+ME = "/v1/auth/me"
+
+
+def test_me_requires_authentication(client):
+    assert client.get(ME).status_code in (401, 403)
+
+
+def test_me_returns_identity_and_all_roles_from_cookie_session(make_user, login, client):
+    from django.contrib.auth.models import Group
+
+    u = make_user(role="Sales/Follow-up")
+    login()  # log in first: Campaign Manager would require MFA
+    u.groups.add(Group.objects.get(name="Campaign Manager"))
+    r = client.get(ME)
+    assert r.status_code == 200
+    assert r.json() == {"id": u.pk, "username": "u1", "roles": ["Campaign Manager", "Sales/Follow-up"]}
+
+
+def test_me_works_for_user_without_role(make_user, login, client):
+    make_user()
+    login()
+    assert client.get(ME).json()["roles"] == []
