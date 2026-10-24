@@ -43,3 +43,29 @@ test('formatRelative picks a sensible unit', () => {
   expect(formatRelative('2026-10-24T09:55:00Z', now)).toBe('5 minutes ago')
   expect(formatRelative('2026-10-22T10:00:00Z', now)).toBe('2 days ago')
 })
+
+describe('uuid, transitions and durations', () => {
+  test('isUuid accepts only canonical UUIDs', async () => {
+    const { isUuid } = await import('../src/lib/uuid')
+    expect(isUuid('6f1c2b1e-6f3a-4c55-8f55-0d6d0d6d0d6d')).toBe(true)
+    for (const bad of ['', 'abc', '../etc', '6f1c2b1e-6f3a-4c55-8f55-0d6d0d6d0d6d/x', undefined])
+      expect(isUuid(bad)).toBe(false)
+  })
+
+  test('statusAction names paused->active a resume, draft->active an activate', async () => {
+    const { statusAction, NEXT_STATUSES } = await import('../src/lib/transitions')
+    expect(statusAction('paused', 'active')).toBe('resume')
+    expect(statusAction('draft', 'active')).toBe('activate')
+    expect(statusAction('active', 'completed')).toBe('complete')
+    expect(NEXT_STATUSES.completed).toEqual([])
+  })
+
+  test('formatDuration reads seconds as minutes', async () => {
+    const { formatDuration } = await import('../src/lib/format')
+    expect(formatDuration(30)).toBe('30 s')
+    expect(formatDuration(600)).toBe('10 min')
+    expect(formatDuration(90)).toBe('1 min 30 s')
+    expect(formatDuration(0)).toBe('0 s')
+    expect(formatDuration(-1)).toBe('')
+  })
+})

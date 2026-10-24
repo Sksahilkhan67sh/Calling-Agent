@@ -115,12 +115,17 @@ async function toApiError(res: Response): Promise<ApiError> {
         : strings.api.generic
   const fieldErrors: Record<string, string[]> = {}
   if (res.status === 400) {
-    for (const [key, value] of Object.entries(body)) {
-      if (key === 'code' || key === 'message' || key === 'detail') continue
+    // Nested serializer errors ({retry_policy: {max_retries: [...]}}) are flattened to "retry_policy.max_retries"
+    const collect = (prefix: string, value: unknown) => {
+      if (value && typeof value === 'object' && !Array.isArray(value))
+        return Object.entries(value).forEach(([k, v]) => collect(prefix ? `${prefix}.${k}` : k, v))
       const messages = (Array.isArray(value) ? value : [value]).filter(
         (v): v is string => typeof v === 'string',
       )
-      if (messages.length) fieldErrors[key] = messages
+      if (messages.length) fieldErrors[prefix] = messages
+    }
+    for (const [key, value] of Object.entries(body)) {
+      if (key !== 'code' && key !== 'message' && key !== 'detail') collect(key, value)
     }
   }
   return new ApiError(

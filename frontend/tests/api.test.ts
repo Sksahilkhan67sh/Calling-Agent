@@ -167,3 +167,22 @@ test('204 resolves to undefined and non-JSON error bodies get a generic message'
     message: 'Something went wrong. Try again.',
   })
 })
+
+test('nested serializer errors are flattened to dotted field names', async () => {
+  server.use(
+    http.post('*/v1/x', () =>
+      HttpResponse.json(
+        { retry_policy: { max_retries: ['Too big.'], non_field_errors: ['Bad.'] }, name: ['Req.'] },
+        { status: 400 },
+      ),
+    ),
+  )
+  const error = await api('/v1/x', { method: 'POST', json: {} }).catch((e: unknown) => e)
+  expect(error).toMatchObject({
+    fieldErrors: {
+      'retry_policy.max_retries': ['Too big.'],
+      'retry_policy.non_field_errors': ['Bad.'],
+      name: ['Req.'],
+    },
+  })
+})

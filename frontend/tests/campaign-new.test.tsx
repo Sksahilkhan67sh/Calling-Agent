@@ -222,3 +222,94 @@ describe('cancel', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/campaigns'))
   })
 })
+
+describe('Admin-only config sections', () => {
+  const rp = strings.retryPolicy
+  const ac = strings.agentConfig
+
+  test('Manager does not see them', async () => {
+    renderApp('/campaigns/new', ALL_ROLES.manager)
+    await screen.findByLabelText(t.name)
+    expect(screen.queryByText(strings.config.optionalSection)).toBeNull()
+    expect(screen.queryByText(strings.config.optionalAgent)).toBeNull()
+  })
+
+  test('untouched sections are not sent', async () => {
+    let form: FormData | undefined
+    server.use(
+      http.post('*/v1/campaigns', async ({ request }) => {
+        form = await request.formData()
+        return HttpResponse.json(campaign(), { status: 201 })
+      }),
+    )
+    const { user } = renderApp('/campaigns/new')
+    await fill(user)
+    await submit(user)
+    await waitFor(() => expect(form).toBeDefined())
+    expect(form?.has('retry_policy')).toBe(false)
+    expect(form?.has('agent_config')).toBe(false)
+  })
+
+  test('changed sections are sent as JSON strings', async () => {
+    let form: FormData | undefined
+    server.use(
+      http.post('*/v1/campaigns', async ({ request }) => {
+        form = await request.formData()
+        return HttpResponse.json(campaign(), { status: 201 })
+      }),
+    )
+    const { user } = renderApp('/campaigns/new')
+    await fill(user)
+    await user.click(screen.getByText(strings.config.optionalSection))
+    await user.click(screen.getByText(strings.config.optionalAgent))
+    const retries = screen.getByLabelText(rp.maxRetries)
+    await user.clear(retries)
+    await user.type(retries, '1')
+    await user.type(screen.getByLabelText(ac.tone), 'Friendly')
+    await submit(user)
+    await waitFor(() => expect(form).toBeDefined())
+    expect(JSON.parse(form?.get('retry_policy') as string)).toMatchObject({
+      max_retries: 1,
+      retry_spacing_seconds: [30],
+    })
+    expect(JSON.parse(form?.get('agent_config') as string)).toMatchObject({
+      persona_tone: 'Friendly',
+      model_config_uuid: null,
+    })
+  })
+
+  test('an invalid section blocks the request', async () => {
+    let calls = 0
+    server.use(
+      http.post('*/v1/campaigns', () => (calls++, HttpResponse.json(campaign(), { status: 201 }))),
+    )
+    const { user } = renderApp('/campaigns/new')
+    await fill(user)
+    await user.click(screen.getByText(strings.config.optionalAgent))
+    await user.type(screen.getByLabelText(ac.model), 'nope')
+    await submit(user)
+    expect(await screen.findByText(ac.modelInvalid)).toBeInTheDocument()
+    expect(calls).toBe(0)
+  })
+
+  test('nested server errors are shown with the section name', async () => {
+    server.use(
+      http.post('*/v1/campaigns', () =>
+        HttpResponse.json(
+          { retry_policy: { non_field_errors: ['window_start must be before window_end.'] } },
+          { status: 400 },
+        ),
+      ),
+    )
+    const { user } = renderApp('/campaigns/new')
+    await fill(user)
+    await user.click(screen.getByText(strings.config.optionalSection))
+    await user.type(screen.getByLabelText(rp.start), '09:00')
+    await submit(user)
+    expect(
+      await screen.findByText(
+        `${strings.config.optionalSection}: window_start must be before window_end.`,
+      ),
+    ).toBeInTheDocument()
+  })
+})
