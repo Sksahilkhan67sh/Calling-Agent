@@ -4,9 +4,25 @@ import { useForm, useWatch } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom'
 import { z } from 'zod'
 import { ApiError } from '../api/api'
+import { ADMIN } from '../api/types'
+import { useHasRole } from '../auth/guards'
 import { useCreateCampaign } from '../api/queries'
 import { Button } from '../components/Button'
 import { ConfirmDialog } from '../components/ConfirmDialog'
+import {
+  AgentConfigFields,
+  agentDefaults,
+  agentSchema,
+  agentToPayload,
+  type AgentValues,
+} from '../components/config/AgentConfigFields'
+import {
+  RetryPolicyFields,
+  retryDefaults,
+  retrySchema,
+  retryToPayload,
+  type RetryValues,
+} from '../components/config/RetryPolicyFields'
 import { Field, inputClass } from '../components/Field'
 import { useToast } from '../components/Toast'
 import { strings } from '../lib/strings'
@@ -31,6 +47,15 @@ export function CampaignNew() {
   const [dragging, setDragging] = useState(false)
   const [confirmDiscard, setConfirmDiscard] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+  const isAdmin = useHasRole(ADMIN)
+  const retryForm = useForm<RetryValues>({
+    resolver: zodResolver(retrySchema),
+    defaultValues: retryDefaults,
+  })
+  const agentForm = useForm<AgentValues>({
+    resolver: zodResolver(agentSchema),
+    defaultValues: agentDefaults,
+  })
   const {
     register,
     handleSubmit,
@@ -42,7 +67,8 @@ export function CampaignNew() {
 
   const file = useWatch({ control, name: 'file' })
   const name = useWatch({ control, name: 'name' })
-  const dirty = Boolean(name) || Boolean(file)
+  const configDirty = retryForm.formState.isDirty || agentForm.formState.isDirty
+  const dirty = Boolean(name) || Boolean(file) || configDirty
   const busy = create.isPending
 
   const pick = (f: File | undefined) =>
@@ -50,8 +76,21 @@ export function CampaignNew() {
 
   const onSubmit = handleSubmit(async ({ name, file }) => {
     setFormError(null)
+    // Only sections the Admin actually changed are sent; the server fills in defaults otherwise
+    const sendRetry = isAdmin && retryForm.formState.isDirty
+    const sendAgent = isAdmin && agentForm.formState.isDirty
+    const valid = await Promise.all([
+      sendRetry ? retryForm.trigger() : true,
+      sendAgent ? agentForm.trigger() : true,
+    ])
+    if (valid.includes(false)) return
     try {
-      const campaign = await create.mutateAsync({ name, file })
+      const campaign = await create.mutateAsync({
+        name,
+        file,
+        retryPolicy: sendRetry ? retryToPayload(retryForm.getValues()) : undefined,
+        agentConfig: sendAgent ? agentToPayload(agentForm.getValues()) : undefined,
+      })
       toast.success(t.created)
       navigate(`/campaigns/${campaign.id}`)
     } catch (e) {
@@ -64,6 +103,15 @@ export function CampaignNew() {
       }
       if (mapped.name) setError('name', { message: mapped.name })
       if (mapped.file) setError('file', { message: mapped.file })
+      const section = Object.entries(e.fieldErrors).find(([k]) =>
+        /^(retry_policy|agent_config)/.test(k),
+      )
+      if (section) {
+        const label = section[0].startsWith('retry_policy')
+          ? strings.config.optionalSection
+          : strings.config.optionalAgent
+        return setFormError(`${label}: ${section[1][0]}`)
+      }
       if (!mapped.name && !mapped.file) setFormError(e.message)
     }
   })
@@ -142,6 +190,25 @@ export function CampaignNew() {
           </a>
           <span className="mt-1 block text-xs text-muted">{t.sampleNote}</span>
         </p>
+
+        {isAdmin && (
+          <>
+            <details className="rounded-md border border-border p-3">
+              <summary className="cursor-pointer text-sm font-medium">
+                {strings.config.optionalSection}
+              </summary>
+              <p className="my-2 text-xs text-muted">{strings.config.optionalHelp}</p>
+              <RetryPolicyFields form={retryForm} />
+            </details>
+            <details className="rounded-md border border-border p-3">
+              <summary className="cursor-pointer text-sm font-medium">
+                {strings.config.optionalAgent}
+              </summary>
+              <p className="my-2 text-xs text-muted">{strings.config.optionalHelp}</p>
+              <AgentConfigFields form={agentForm} />
+            </details>
+          </>
+        )}
 
         {formError && (
           <p role="alert" className="text-sm text-danger">
