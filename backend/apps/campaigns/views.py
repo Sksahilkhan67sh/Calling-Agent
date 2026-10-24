@@ -10,11 +10,11 @@ from apps.audit.services import record
 from apps.contacts.importer import parse_numbers
 from apps.contacts.models import Contact
 from apps.core.crypto import encrypt, phone_hmac
-from apps.core.permissions import ADMIN, MANAGER, user_roles
+from apps.core.permissions import ADMIN, MANAGER, SALES, user_roles
 from apps.voice_runtime.client import DograhError
 
 from .models import AgentConfig, Campaign, RetryPolicy
-from .sync import sync_workflow
+from .sync import render_workflow, sync_workflow, workflow_digest
 from .serializers import (AgentConfigSerializer, CampaignCreateSerializer, CampaignSerializer,
                           CampaignStatusSerializer, RetryPolicySerializer)
 
@@ -32,7 +32,7 @@ def _filtered_by_status(request, qs, choices):
 
 
 class CampaignListCreateView(APIView):
-    roles = {"GET": {ADMIN, MANAGER}, "POST": {ADMIN, MANAGER}}
+    roles = {"GET": {ADMIN, MANAGER, SALES}, "POST": {ADMIN, MANAGER}}
 
     def get(self, request):
         qs = _filtered_by_status(request, _campaigns(request.user), Campaign.Status.values)
@@ -58,10 +58,14 @@ class CampaignListCreateView(APIView):
 
 
 class CampaignDetailView(APIView):
-    roles = {"GET": {ADMIN, MANAGER}, "PATCH": {ADMIN, MANAGER}}
+    roles = {"GET": {ADMIN, MANAGER, SALES}, "PATCH": {ADMIN, MANAGER}}
 
     def get(self, request, campaign_id):
-        return Response(CampaignSerializer(get_object_or_404(_campaigns(request.user), pk=campaign_id)).data)
+        campaign = get_object_or_404(_campaigns(request.user).select_related("agent_config"), pk=campaign_id)
+        data = CampaignSerializer(campaign).data
+        if ADMIN in user_roles(request.user):
+            data["workflow_synced"] = campaign.workflow_synced_sha256 == workflow_digest(render_workflow(campaign))
+        return Response(data)
 
     def patch(self, request, campaign_id):
         with transaction.atomic():

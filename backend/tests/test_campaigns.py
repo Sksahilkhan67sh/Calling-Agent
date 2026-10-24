@@ -79,10 +79,17 @@ def test_manager_sees_only_own_campaigns(api):
     assert b.patch(f"{URL}/{cid}", {"status": "active"}, format="json").status_code == 404
 
 
-def test_sales_cannot_touch_campaigns_but_reads_contacts(api):
+def test_sales_reads_campaigns_but_cannot_write_or_see_config(api):
     cid = create(api("m", "Campaign Manager"), "+14155550100").json()["id"]
     sales = api("s", "Sales/Follow-up")
-    assert sales.get(URL).status_code == 403 and sales.post(URL).status_code == 403
+    assert [c["id"] for c in sales.get(URL).json()] == [cid]
+    detail = sales.get(f"{URL}/{cid}").json()
+    assert set(detail) == {"id", "name", "status", "contact_count", "created_at"}
+    assert sales.post(URL).status_code == 403
+    assert sales.patch(f"{URL}/{cid}", {"status": "active"}, format="json").status_code == 403
+    for part in ("retry-policy", "agent-config"):
+        assert sales.get(f"{URL}/{cid}/{part}").status_code == 403
+    assert sales.post(f"{URL}/{cid}/sync-workflow").status_code == 403
     assert sales.get(f"{URL}/{cid}/contacts").json()["total"] == 1
     contact = Contact.objects.get()
     assert sales.get(f"/v1/contacts/{contact.pk}").json()["phone_number"] == "+14155550100"

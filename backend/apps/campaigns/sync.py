@@ -44,13 +44,17 @@ def render_workflow(campaign):
     }
 
 
+def workflow_digest(definition):
+    return hashlib.sha256(json.dumps(definition, sort_keys=True).encode()).hexdigest()
+
+
 def sync_workflow(campaign_id, *, actor, request, runtime=None):
     runtime, failure = runtime or DograhClient(), None
     with transaction.atomic():
         # Row lock keeps two syncs from both creating a workflow for the same campaign
         campaign = Campaign.objects.select_for_update(of=("self",)).select_related("agent_config").get(pk=campaign_id)
         definition = render_workflow(campaign)
-        digest = hashlib.sha256(json.dumps(definition, sort_keys=True).encode()).hexdigest()
+        digest = workflow_digest(definition)
         before = {"workflow_uuid": str(campaign.dograh_workflow_uuid or ""), "definition_sha256": campaign.workflow_synced_sha256}
         try:
             campaign.dograh_workflow_uuid = runtime.push_workflow(campaign.dograh_workflow_uuid, definition)

@@ -1,0 +1,67 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* AA contrast pairs: fg/bg 15:1, muted/bg 7:1, primary-fg/primary 6:1+ in both themes */
+:root {
+  color-scheme: light;
+  --bg: #ffffff;
+  --card: #f8fafc;
+  --fg: #0f172a;
+  --muted: #475569;
+  --border: #cbd5e1;
+  --primary: #1d4ed8;
+  --primary-fg: #ffffff;
+  --danger: #b91c1c;
+}
+
+.dark {
+  color-scheme: dark;
+  --bg: #0b1220;
+  --card: #111a2e;
+  --fg: #e2e8f0;
+  --muted: #94a3b8;
+  --border: #334155;
+  --primary: #60a5fa;
+  --primary-fg: #0b1220;
+  --danger: #f87171;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-card: var(--card);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-fg: var(--primary-fg);
+  --color-danger: var(--danger);
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--fg);
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+}
+
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
