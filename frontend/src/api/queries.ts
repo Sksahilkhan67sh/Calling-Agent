@@ -1,7 +1,27 @@
-import { QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  QueryClient,
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 import { api } from './api'
 import { isThrottled } from './throttle'
-import type { AgentConfig, Campaign, CampaignStatus, Me, RetryPolicy } from './types'
+import type {
+  AgentConfig,
+  CallAttempt,
+  Campaign,
+  CampaignStatus,
+  ContactDetail,
+  ContactPage,
+  ContactStatus,
+  DisconnectEvent,
+  Me,
+  Recording,
+  RetryPolicy,
+  Suppression,
+  Transcript,
+} from './types'
 
 // Retries are handled in api.ts (one GET retry on a dropped connection); nothing here retries.
 // The cache lives in memory only and is cleared on logout.
@@ -16,6 +36,9 @@ export const queryKeys = {
   campaign: (id: string) => ['campaigns', 'detail', id] as const,
   retryPolicy: (id: string) => ['campaigns', 'detail', id, 'retry-policy'] as const,
   agentConfig: (id: string) => ['campaigns', 'detail', id, 'agent-config'] as const,
+  contacts: (campaignId: string) => ['contacts', 'list', campaignId] as const,
+  contact: (id: string) => ['contacts', 'detail', id] as const,
+  attempt: (id: string) => ['attempts', id] as const,
   campaignList: (status: CampaignStatus | '') => ['campaigns', 'list', status || 'all'] as const,
 }
 
@@ -125,5 +148,77 @@ export function useSaveAgentConfig(id: string) {
       qc.setQueryData(queryKeys.agentConfig(id), data)
       return qc.invalidateQueries({ queryKey: queryKeys.campaign(id), exact: true })
     },
+  })
+}
+
+export interface ContactsParams {
+  status: ContactStatus | ''
+  page: number
+  pageSize: number
+}
+
+export function useContacts(campaignId: string, { status, page, pageSize }: ContactsParams) {
+  const qs = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
+  if (status) qs.set('status', status)
+  return useQuery({
+    queryKey: [...queryKeys.contacts(campaignId), status || 'all', page, pageSize],
+    queryFn: ({ signal }) =>
+      api<ContactPage>(`/v1/campaigns/${campaignId}/contacts?${qs}`, { signal }),
+    placeholderData: keepPreviousData,
+    refetchInterval: pollEvery(30_000),
+  })
+}
+
+export function useContact(id: string) {
+  return useQuery({
+    queryKey: queryKeys.contact(id),
+    queryFn: ({ signal }) => api<ContactDetail>(`/v1/contacts/${id}`, { signal }),
+    refetchInterval: pollEvery(30_000),
+  })
+}
+
+// 201 (new) and 200 (already suppressed) both mean the contact is now suppressed.
+export function useSuppressContact(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (reason: string) =>
+      api<Suppression>(`/v1/contacts/${id}/suppress`, { method: 'POST', json: { reason } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['contacts'] }),
+  })
+}
+
+export function useAttempt(id: string) {
+  return useQuery({
+    queryKey: queryKeys.attempt(id),
+    queryFn: ({ signal }) => api<CallAttempt>(`/v1/call-attempts/${id}`, { signal }),
+  })
+}
+
+export function useDisconnectEvents(id: string) {
+  return useQuery({
+    queryKey: [...queryKeys.attempt(id), 'disconnect-events'],
+    queryFn: ({ signal }) =>
+      api<DisconnectEvent[]>(`/v1/call-attempts/${id}/disconnect-events`, { signal }),
+  })
+}
+
+// Transcripts and recordings are sensitive and each fetch is audit-logged, so they are never
+// loaded automatically: the query is disabled, the person's click calls refetch(), and the
+// result is dropped from the cache as soon as the panel unmounts (gcTime 0).
+const onDemand = { enabled: false, gcTime: 0, staleTime: 0 } as const
+
+export function useTranscript(id: string) {
+  return useQuery({
+    queryKey: [...queryKeys.attempt(id), 'transcript'],
+    queryFn: ({ signal }) => api<Transcript>(`/v1/call-attempts/${id}/transcript`, { signal }),
+    ...onDemand,
+  })
+}
+
+export function useRecording(id: string) {
+  return useQuery({
+    queryKey: [...queryKeys.attempt(id), 'recording'],
+    queryFn: ({ signal }) => api<Recording>(`/v1/call-attempts/${id}/recording`, { signal }),
+    ...onDemand,
   })
 }
