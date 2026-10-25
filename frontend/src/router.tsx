@@ -80,6 +80,34 @@ export const createRoutes = (queryClient: QueryClient): RouteObject[] => [
               },
             ],
           },
+          {
+            path: 'contacts/:id',
+            handle: { crumb: strings.breadcrumb.contact },
+            lazy: async () => {
+              const { Contact } = await import('./pages/Contact')
+              return {
+                element: (
+                  <RequireRole roles={[ADMIN, MANAGER, SALES]}>
+                    <Contact />
+                  </RequireRole>
+                ),
+              }
+            },
+          },
+          {
+            path: 'call-attempts/:id',
+            handle: { crumb: strings.breadcrumb.attempt },
+            lazy: async () => {
+              const { CallAttempt } = await import('./pages/CallAttempt')
+              return {
+                element: (
+                  <RequireRole roles={[ADMIN, MANAGER]}>
+                    <CallAttempt />
+                  </RequireRole>
+                ),
+              }
+            },
+          },
           { path: 'forbidden', element: <Forbidden /> },
           { path: '*', element: <NotFound /> },
         ],

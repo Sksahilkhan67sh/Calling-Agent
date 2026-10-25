@@ -10,6 +10,7 @@ const rp = strings.retryPolicy
 const ac = strings.agentConfig
 const ID = '6f1c2b1e-6f3a-4c55-8f55-0d6d0d6d0d6d'
 const path = `/campaigns/${ID}`
+const retryPath = `${path}?tab=retry`
 
 const retryPolicy = {
   id: 'p1',
@@ -49,6 +50,9 @@ const agentConfig = {
 function mockCampaign(over: Record<string, unknown> = {}) {
   server.use(
     http.get(`*/v1/campaigns/${ID}`, () => HttpResponse.json(campaign({ id: ID, ...over }))),
+    http.get(`*/v1/campaigns/${ID}/contacts`, () =>
+      HttpResponse.json({ total: 0, page: 1, items: [] }),
+    ),
     http.get(`*/v1/campaigns/${ID}/retry-policy`, () => HttpResponse.json(retryPolicy)),
     http.get(`*/v1/campaigns/${ID}/agent-config`, () => HttpResponse.json(agentConfig)),
   )
@@ -76,7 +80,7 @@ describe('route', () => {
 
   test('shows name, status, contact count and has no axe violations', async () => {
     mockCampaign()
-    const { container } = renderApp(path)
+    const { container } = renderApp(retryPath)
     expect(await screen.findByRole('heading', { name: 'Q4 outreach' })).toBeInTheDocument()
     expect(screen.getByText(t.contactCount(12))).toBeInTheDocument()
     await screen.findByLabelText(rp.maxRetries)
@@ -85,12 +89,14 @@ describe('route', () => {
 })
 
 describe('roles', () => {
-  test('Sales can read the campaign but gets no actions or tabs', async () => {
+  test('Sales can read the campaign and see Contacts, but gets no actions or config tabs', async () => {
     mockCampaign()
     renderApp(path, ALL_ROLES.sales)
     await screen.findByRole('heading', { name: 'Q4 outreach' })
-    expect(within(screen.getByRole('main')).queryByRole('button')).toBeNull()
-    expect(screen.queryByRole('tab')).toBeNull()
+    const main = within(screen.getByRole('main'))
+    for (const name of [t.action.activate, t.action.complete, t.sync])
+      expect(main.queryByRole('button', { name })).toBeNull()
+    expect(screen.getAllByRole('tab').map((x) => x.textContent)).toEqual([t.tabContacts])
   })
 
   test('Manager can change status but not sync, and sees no stale banner', async () => {
@@ -228,7 +234,7 @@ describe('sync workflow', () => {
 describe('retry policy tab', () => {
   test('shows the stored values; time is not converted', async () => {
     mockCampaign()
-    renderApp(path)
+    renderApp(retryPath)
     expect(await screen.findByLabelText(rp.maxRetries)).toHaveValue(2)
     expect(screen.getByLabelText(rp.spacing(1))).toHaveValue(30)
     expect(screen.getByLabelText(rp.spacing(2))).toHaveValue(600)
@@ -252,7 +258,7 @@ describe('retry policy tab', () => {
         })
       }),
     )
-    const { user } = renderApp(path)
+    const { user } = renderApp(retryPath)
     const retries = await screen.findByLabelText(rp.maxRetries)
     await user.clear(retries)
     await user.type(retries, '3')
@@ -277,7 +283,7 @@ describe('retry policy tab', () => {
         () => (calls++, HttpResponse.json(retryPolicy)),
       ),
     )
-    const { user } = renderApp(path)
+    const { user } = renderApp(retryPath)
     const start = await screen.findByLabelText(rp.start)
     await user.clear(start)
     await user.type(start, '19:00')
@@ -293,7 +299,7 @@ describe('retry policy tab', () => {
         HttpResponse.json({ window_end: ['Server says no.'] }, { status: 400 }),
       ),
     )
-    const { user } = renderApp(path)
+    const { user } = renderApp(retryPath)
     const spacing = await screen.findByLabelText(rp.spacing(1))
     await user.clear(spacing)
     await user.type(spacing, '45')
@@ -303,7 +309,7 @@ describe('retry policy tab', () => {
 
   test('Manager sees the values read-only with no Save', async () => {
     mockCampaign()
-    renderApp(path, ALL_ROLES.manager)
+    renderApp(retryPath, ALL_ROLES.manager)
     expect(await screen.findByLabelText(rp.maxRetries)).toBeDisabled()
     expect(screen.getByText(strings.config.readOnly)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: strings.config.save })).toBeNull()
@@ -314,7 +320,7 @@ describe('retry policy tab', () => {
     server.use(
       http.get(`*/v1/campaigns/${ID}/retry-policy`, () => HttpResponse.json({}, { status: 500 })),
     )
-    renderApp(path)
+    renderApp(retryPath)
     expect(await screen.findByText(strings.config.loadFailed)).toBeInTheDocument()
   })
 })
@@ -329,10 +335,10 @@ describe('agent config tab', () => {
     expect(screen.getByRole('tab', { name: t.agent })).toHaveAttribute('aria-selected', 'true')
   })
 
-  test('an unknown tab value falls back to the first tab', async () => {
+  test('an unknown tab value falls back to the Contacts tab', async () => {
     mockCampaign()
     renderApp(`${path}?tab=<script>`)
-    expect(await screen.findByLabelText(rp.maxRetries)).toBeInTheDocument()
+    expect(await screen.findByLabelText(strings.contacts.status)).toBeInTheDocument()
   })
 
   test('Admin saves; blank script lines are dropped and an empty model uuid becomes null', async () => {
@@ -373,7 +379,7 @@ describe('agent config tab', () => {
 describe('unsaved changes', () => {
   async function dirtyRetry() {
     mockCampaign()
-    const r = renderApp(path)
+    const r = renderApp(retryPath)
     const retries = await screen.findByLabelText(rp.maxRetries)
     await r.user.clear(retries)
     await r.user.type(retries, '1')
@@ -408,7 +414,7 @@ describe('unsaved changes', () => {
 
   test('a clean form navigates without asking', async () => {
     mockCampaign()
-    const { user } = renderApp(path)
+    const { user } = renderApp(retryPath)
     await screen.findByLabelText(rp.maxRetries)
     await user.click(screen.getByRole('tab', { name: t.agent }))
     expect(await screen.findByLabelText(ac.tone)).toBeInTheDocument()
