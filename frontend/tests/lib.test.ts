@@ -69,3 +69,25 @@ describe('uuid, transitions and durations', () => {
     expect(formatDuration(-1)).toBe('')
   })
 })
+
+describe('maskPhone', () => {
+  test.each([
+    ['+919876547678', '+91•••••7678'],
+    ['+14155550100', '+1•••••0100'],
+    ['+447911123456', '+44•••••3456'],
+    ['+966512345678', '+966•••••5678'],
+    ['+79161234567', '+7•••••4567'],
+    ['919876547678', '+91•••••7678'],
+  ])('%s -> %s', async (input, expected) => {
+    const { maskPhone } = await import('../src/lib/mask')
+    expect(maskPhone(input)).toBe(expected)
+  })
+
+  test.each(['', 'abc', '+12', '+1415555010x', '+9198765476781234567'])(
+    'fully masks the malformed value %j',
+    async (input) => {
+      const { maskPhone } = await import('../src/lib/mask')
+      expect(maskPhone(input)).toBe('••••••••')
+    },
+  )
+})

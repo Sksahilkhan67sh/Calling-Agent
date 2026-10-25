@@ -17,9 +17,10 @@ import { NEXT_STATUSES, statusAction } from '../lib/transitions'
 import { isUuid } from '../lib/uuid'
 import { NotFound } from './NotFound'
 import { AgentConfigTab, RetryPolicyTab } from './campaign/ConfigTabs'
+import { ContactsTab } from './campaign/ContactsTab'
 
 const t = strings.campaignDetail
-const TABS = ['retry', 'agent'] as const
+const TABS = ['contacts', 'retry', 'agent'] as const
 type Tab = (typeof TABS)[number]
 
 export function CampaignDetail() {
@@ -63,7 +64,8 @@ function Detail({ id }: { id: string }) {
     )
 
   const requested = params.get('tab')
-  const tab: Tab = TABS.find((x) => x === requested) ?? 'retry'
+  const visibleTabs = TABS.filter((x) => x === 'contacts' || canManage)
+  const tab: Tab = visibleTabs.find((x) => x === requested) ?? 'contacts'
   const stale = isAdmin && campaign.workflow_synced === false
   const busy = setStatus.isPending || sync.isPending
 
@@ -147,31 +149,36 @@ function Detail({ id }: { id: string }) {
         </p>
       )}
 
-      {canManage && (
-        <Tabs.Root
-          value={tab}
-          onValueChange={(v) => setParams({ tab: v }, { replace: true })}
-          className="mt-6"
-        >
-          <Tabs.List aria-label={t.tabs} className="mb-4 flex gap-1 border-b border-border">
-            {TABS.map((x) => (
-              <Tabs.Trigger
-                key={x}
-                value={x}
-                className="-mb-px border-b-2 border-transparent px-4 py-2 text-sm data-[state=active]:border-primary data-[state=active]:font-medium"
-              >
-                {x === 'retry' ? t.retry : t.agent}
-              </Tabs.Trigger>
-            ))}
-          </Tabs.List>
-          <Tabs.Content value="retry">
-            <RetryPolicyTab id={id} canEdit={isAdmin} dirtyRef={dirtyRef} />
-          </Tabs.Content>
-          <Tabs.Content value="agent">
-            <AgentConfigTab id={id} canEdit={isAdmin} dirtyRef={dirtyRef} />
-          </Tabs.Content>
-        </Tabs.Root>
-      )}
+      <Tabs.Root
+        value={tab}
+        onValueChange={(v) => setParams({ tab: v }, { replace: true })}
+        className="mt-6"
+      >
+        <Tabs.List aria-label={t.tabs} className="mb-4 flex gap-1 border-b border-border">
+          {visibleTabs.map((x) => (
+            <Tabs.Trigger
+              key={x}
+              value={x}
+              className="-mb-px border-b-2 border-transparent px-4 py-2 text-sm data-[state=active]:border-primary data-[state=active]:font-medium"
+            >
+              {x === 'contacts' ? t.tabContacts : x === 'retry' ? t.retry : t.agent}
+            </Tabs.Trigger>
+          ))}
+        </Tabs.List>
+        <Tabs.Content value="contacts">
+          <ContactsTab campaignId={id} />
+        </Tabs.Content>
+        {canManage && (
+          <>
+            <Tabs.Content value="retry">
+              <RetryPolicyTab id={id} canEdit={isAdmin} dirtyRef={dirtyRef} />
+            </Tabs.Content>
+            <Tabs.Content value="agent">
+              <AgentConfigTab id={id} canEdit={isAdmin} dirtyRef={dirtyRef} />
+            </Tabs.Content>
+          </>
+        )}
+      </Tabs.Root>
 
       <ConfirmDialog
         open={confirm !== null}
